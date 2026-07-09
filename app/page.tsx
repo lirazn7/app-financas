@@ -118,38 +118,56 @@ export default function Home() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Foto ou Arquivo da Nota Fiscal</label>
-              <div className="flex items-center justify-center w-full">
-                <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 p-4 transition-colors">
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="flex gap-3 mb-2 text-gray-400">
-                      <Camera className="w-6 h-6 text-blue-500" />
-                      <ImageIcon className="w-6 h-6 text-emerald-500" />
-                    </div>
-                    <p className="text-sm font-medium text-gray-600">
-                      {imagem ? imagem.name : "Tire uma foto ou escolha da galeria"}
-                    </p>
-                    {!imagem && (
-                      <p className="text-xs text-gray-400 mt-1">
-                        Aceita fotos da câmera ou prints armazenados
-                      </p>
-                    )}
-                  </div>
-                  {/* 👇 REMOVIDO: O atributo capture="environment" foi retirado daqui 👇 */}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => setImagem(e.target.files?.[0] || null)}
-                  />
-                </label>
-              </div>
+              <label className="block text-sm font-medium mb-3">Anexar Nota Fiscal</label>
+              
+              {imagem ? (
+                // Se já escolheu um arquivo, mostra o nome dele bem bonito
+                <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-xl p-4 text-center text-sm font-medium flex items-center justify-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                  <span className="truncate max-w-[200px]">{imagem.name}</span>
+                  <button 
+                    type="button" 
+                    onClick={() => setImagem(null)} 
+                    className="text-xs text-red-500 ml-2 underline font-semibold"
+                  >
+                    Alterar
+                  </button>
+                </div>
+              ) : (
+                // Se não escolheu, mostra as DUAS opções lado a lado de forma clara
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Opção 1: Abrir Câmera Direto */}
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl py-6 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all active:scale-98">
+                    <Camera className="w-6 h-6 text-blue-500 mb-2" />
+                    <span className="text-xs font-bold text-gray-700">Tirar Foto</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => setImagem(e.target.files?.[0] || null)}
+                    />
+                  </label>
+
+                  {/* Opção 2: Escolher da Galeria/Prints */}
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl py-6 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all active:scale-98">
+                    <ImageIcon className="w-6 h-6 text-emerald-500 mb-2" />
+                    <span className="text-xs font-bold text-gray-700">Abrir Galeria</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setImagem(e.target.files?.[0] || null)}
+                    />
+                  </label>
+                </div>
+              )}
             </div>
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 text-white rounded-lg p-4 font-bold flex justify-center items-center gap-2 hover:bg-blue-700 disabled:opacity-70 cursor-pointer"
+              disabled={loading || !imagem}
+              className="w-full bg-blue-600 text-white rounded-lg p-4 font-bold flex justify-center items-center gap-2 hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <>

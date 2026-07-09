@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, Upload, Loader2, CheckCircle, Save, BarChart3 } from "lucide-react";
+import { Camera, Upload, Loader2, CheckCircle, Save, BarChart3, Image as ImageIcon } from "lucide-react";
 import { supabase } from "../lib/supabase"; 
 import Link from "next/link"; 
 
@@ -59,7 +59,6 @@ export default function Home() {
         ? resultado.data_compra 
         : null;
 
-      // Enviamos a nova coluna 'forma_pagamento' extraída pela IA para o Supabase
       const { error } = await supabase
         .from('gastos')
         .insert([
@@ -119,19 +118,27 @@ export default function Home() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Foto da Nota Fiscal</label>
+              <label className="block text-sm font-medium mb-2">Foto ou Arquivo da Nota Fiscal</label>
               <div className="flex items-center justify-center w-full">
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Camera className="w-8 h-8 mb-2 text-gray-500" />
-                    <p className="text-sm text-gray-500">
-                      {imagem ? imagem.name : "Toque para abrir a câmera"}
+                <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 p-4 transition-colors">
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <div className="flex gap-3 mb-2 text-gray-400">
+                      <Camera className="w-6 h-6 text-blue-500" />
+                      <ImageIcon className="w-6 h-6 text-emerald-500" />
+                    </div>
+                    <p className="text-sm font-medium text-gray-600">
+                      {imagem ? imagem.name : "Tire uma foto ou escolha da galeria"}
                     </p>
+                    {!imagem && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Aceita fotos da câmera ou prints armazenados
+                      </p>
+                    )}
                   </div>
+                  {/* 👇 REMOVIDO: O atributo capture="environment" foi retirado daqui 👇 */}
                   <input
                     type="file"
                     accept="image/*"
-                    capture="environment"
                     className="hidden"
                     onChange={(e) => setImagem(e.target.files?.[0] || null)}
                   />
@@ -142,7 +149,7 @@ export default function Home() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white rounded-lg p-4 font-bold flex justify-center items-center gap-2 hover:bg-blue-700 disabled:opacity-70"
+              className="w-full bg-blue-600 text-white rounded-lg p-4 font-bold flex justify-center items-center gap-2 hover:bg-blue-700 disabled:opacity-70 cursor-pointer"
             >
               {loading ? (
                 <>
@@ -166,7 +173,6 @@ export default function Home() {
               <p><strong>Valor:</strong> R$ {Number(resultado.valor).toFixed(2)}</p>
               <p><strong>Data:</strong> {resultado.data_compra}</p>
               <p><strong>Categoria:</strong> <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">{resultado.categoria}</span></p>
-              {/* 👇 EXIBIÇÃO DA FORMA DE PAGAMENTO ADICIONADA AQUI 👇 */}
               <p><strong>Pagamento:</strong> <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">{resultado.forma_pagamento || 'Não identificado'}</span></p>
             </div>
 

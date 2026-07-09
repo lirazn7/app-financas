@@ -17,27 +17,32 @@ export default function Home() {
 
   // Verifica se os pais já digitaram a senha anteriormente no dispositivo
   useEffect(() => {
-    const tokenSalvo = localStorage.getItem("app_financas_token");
-    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
+  const tokenSalvo = localStorage.getItem("app_financas_token");
+  
+  // Define aqui a senha fixa da família (muda 'SenhaDosPais2026' para a senha real que queres)
+  const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN || "SenhaDosPais2026";
 
-    if (tokenSalvo && tokenSalvo === tokenCorreto) {
-      setAutenticado(true);
-    } else {
-      setAutenticado(false);
-    }
-  }, []);
+  if (tokenSalvo && tokenSalvo === tokenCorreto) {
+    setAutenticado(true);
+  } else {
+    setAutenticado(false);
+  }
+}, []);
 
-  const lidarComAutenticacao = (e: React.FormEvent) => {
-    e.preventDefault();
-    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
+// 2. Altera a verificação do botão de clique (lidarComAutenticacao):
+const lidarComAutenticacao = (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  // Coloca exatamente a mesma senha aqui embaixo também!
+  const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN || "SenhaDosPais2026";
 
-    if (senhaInput === tokenCorreto) {
-      localStorage.setItem("app_financas_token", senhaInput);
-      setAutenticado(true);
-    } else {
-      alert("⚠️ Senha incorreta! Acesso negado.");
-    }
-  };
+  if (senhaInput === tokenCorreto) {
+    localStorage.setItem("app_financas_token", senhaInput);
+    setAutenticado(true);
+  } else {
+    alert("⚠️ Senha incorreta! Acesso negado.");
+  }
+};
 
   const converterParaBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {

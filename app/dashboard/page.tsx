@@ -47,17 +47,31 @@ export default function Dashboard() {
 
   // 1. Verifica se o dispositivo possui a senha correta salva antes de liberar o banco
   useEffect(() => {
-    const tokenSalvo = localStorage.getItem("app_financas_token");
-    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
+  const tokenSalvo = localStorage.getItem("app_financas_token");
+  const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN || "SenhaDosPais2026"; // 👈 Igual aqui
 
-    if (tokenSalvo && tokenSalvo === tokenCorreto) {
-      setAutenticado(true);
-      buscarGastos();
-    } else {
-      setAutenticado(false);
-      setLoading(false);
-    }
-  }, []);
+  if (tokenSalvo && tokenSalvo === tokenCorreto) {
+    setAutenticado(true);
+    buscarGastos();
+  } else {
+    setAutenticado(false);
+    setLoading(false);
+  }
+}, []);
+
+const lidarComAutenticacao = (e: React.FormEvent) => {
+  e.preventDefault();
+  const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN || "SenhaDosPais2026"; // 👈 Igual aqui
+
+  if (senhaInput === tokenCorreto) {
+    localStorage.setItem("app_financas_token", senhaInput);
+    setAutenticado(true);
+    setLoading(true);
+    buscarGastos();
+  } else {
+    alert("⚠️ Senha incorreta! Acesso negado.");
+  }
+};
 
   async function buscarGastos() {
     try {

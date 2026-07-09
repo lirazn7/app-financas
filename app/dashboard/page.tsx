@@ -45,34 +45,6 @@ export default function Dashboard() {
   const [dadosDias, setDadosDias] = useState<{ [key: string]: number }>({});
   const [dadosPagamentos, setDadosPagamentos] = useState<{ [key: string]: number }>({});
 
-  // 1. Verifica se o dispositivo possui a senha correta salva antes de liberar o banco
-  useEffect(() => {
-  const tokenSalvo = localStorage.getItem("app_financas_token");
-  const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN || "SenhaDosPais2026"; // 👈 Igual aqui
-
-  if (tokenSalvo && tokenSalvo === tokenCorreto) {
-    setAutenticado(true);
-    buscarGastos();
-  } else {
-    setAutenticado(false);
-    setLoading(false);
-  }
-}, []);
-
-const lidarComAutenticacao = (e: React.FormEvent) => {
-  e.preventDefault();
-  const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN || "SenhaDosPais2026"; // 👈 Igual aqui
-
-  if (senhaInput === tokenCorreto) {
-    localStorage.setItem("app_financas_token", senhaInput);
-    setAutenticado(true);
-    setLoading(true);
-    buscarGastos();
-  } else {
-    alert("⚠️ Senha incorreta! Acesso negado.");
-  }
-};
-
   async function buscarGastos() {
     try {
       const { data, error } = await supabase
@@ -103,10 +75,24 @@ const lidarComAutenticacao = (e: React.FormEvent) => {
     }
   }
 
-  // 2. Se os pais entrarem direto pelo link do dashboard, permite realizar a autenticação por aqui também
+  // 1. Verifica se o dispositivo possui a senha correta salva antes de liberar o banco
+  useEffect(() => {
+    const tokenSalvo = localStorage.getItem("app_financas_token");
+    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN || "SenhaDosPais2026"; // 👈 Lembra de usar a mesma aqui
+
+    if (tokenSalvo && tokenSalvo === tokenCorreto) {
+      setAutenticado(true);
+      buscarGastos();
+    } else {
+      setAutenticado(false);
+      setLoading(false);
+    }
+  }, []);
+
+  // 2. Função unificada de autenticação (apenas UMA definição aqui)
   const lidarComAutenticacao = (e: React.FormEvent) => {
     e.preventDefault();
-    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
+    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN || "SenhaDosPais2026"; // 👈 Lembra de usar a mesma aqui
 
     if (senhaInput === tokenCorreto) {
       localStorage.setItem("app_financas_token", senhaInput);
@@ -135,32 +121,32 @@ const lidarComAutenticacao = (e: React.FormEvent) => {
     const total = filtrados.reduce((acc, item) => acc + (item.valor || 0), 0);
     setTotalGasto(total);
 
-    const categorias: { [key: string]: number } = {};
-    const dias: { [key: string]: number } = {};
-    const pagamentos: { [key: string]: number } = {};
+    const categories: { [key: string]: number } = {};
+    const days: { [key: string]: number } = {};
+    const payments: { [key: string]: number } = {};
 
     filtrados.forEach((item) => {
       // Agrupar Categorias
       const cat = item.categoria || "Outros";
-      categorias[cat] = (categorias[cat] || 0) + (item.valor || 0);
+      categories[cat] = (categories[cat] || 0) + (item.valor || 0);
 
       // Agrupar Formas de Pagamento
       const pag = item.forma_pagamento || "Não identificado";
-      pagamentos[pag] = (pagamentos[pag] || 0) + (item.valor || 0);
+      payments[pag] = (payments[pag] || 0) + (item.valor || 0);
 
       // Agrupar Dias
       if (item.data_compra) {
         const [ano, mes, dia] = item.data_compra.split("-");
         const diaFormatado = `${dia}/${mes}`;
-        dias[diaFormatado] = (dias[diaFormatado] || 0) + (item.valor || 0);
+        days[diaFormatado] = (days[diaFormatado] || 0) + (item.valor || 0);
       } else {
-        dias["Sem data"] = (dias["Sem data"] || 0) + (item.valor || 0);
+        days["Sem data"] = (days["Sem data"] || 0) + (item.valor || 0);
       }
     });
 
-    setDadosCategorias(categorias);
-    setDadosDias(dias);
-    setDadosPagamentos(pagamentos);
+    setDadosCategorias(categories);
+    setDadosDias(days);
+    setDadosPagamentos(payments);
   }, [mesSelecionado, todosGastos, autenticado]);
 
   const formatarMesAno = (mesAno: string) => {
@@ -208,13 +194,13 @@ const lidarComAutenticacao = (e: React.FormEvent) => {
 
   if (autenticado === null || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
-  // 🔒 Se NÃO estiver autenticado, exibe a mesma tela de bloqueio da Home
+  // 🔒 Se NÃO estiver autenticado, exibe a tela de bloqueio
   if (!autenticado) {
     return (
       <main className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans text-gray-900">
@@ -246,7 +232,7 @@ const lidarComAutenticacao = (e: React.FormEvent) => {
     );
   }
 
-  // 🔓 Se ESTIVER autenticado, carrega todos os relatórios mobile-first normalmente
+  // 🔓 Se ESTIVER autenticado, carrega todos os relatórios
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-6 font-sans text-gray-900 antialiased">
       <div className="max-w-md mx-auto space-y-5">

@@ -1,16 +1,43 @@
 "use client";
 
-import { useState } from "react";
-import { Camera, Upload, Loader2, CheckCircle, Save, BarChart3, Image as ImageIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Camera, Upload, Loader2, CheckCircle, Save, BarChart3, Image as ImageIcon, Lock } from "lucide-react";
 import { supabase } from "../lib/supabase"; 
 import Link from "next/link"; 
 
 export default function Home() {
+  const [autenticado, setAutenticado] = useState<boolean | null>(null);
+  const [senhaInput, setSenhaInput] = useState("");
+  
   const [imagem, setImagem] = useState<File | null>(null);
   const [contexto, setContexto] = useState("");
   const [loading, setLoading] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [resultado, setResultado] = useState<any>(null);
+
+  // Verifica se os pais já digitaram a senha anteriormente no dispositivo
+  useEffect(() => {
+    const tokenSalvo = localStorage.getItem("app_financas_token");
+    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
+
+    if (tokenSalvo && tokenSalvo === tokenCorreto) {
+      setAutenticado(true);
+    } else {
+      setAutenticado(false);
+    }
+  }, []);
+
+  const lidarComAutenticacao = (e: React.FormEvent) => {
+    e.preventDefault();
+    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
+
+    if (senhaInput === tokenCorreto) {
+      localStorage.setItem("app_financas_token", senhaInput);
+      setAutenticado(true);
+    } else {
+      alert("⚠️ Senha incorreta! Acesso negado.");
+    }
+  };
 
   const converterParaBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -75,19 +102,58 @@ export default function Home() {
       if (error) throw error;
 
       alert("🎉 Gasto salvo com sucesso!");
-      
       setResultado(null);
       setImagem(null);
       setContexto("");
-      
     } catch (error: any) {
-      console.error(error);
       alert("Erro ao salvar no banco: " + error.message);
     } finally {
       setSalvando(false);
     }
   };
 
+  // Enquanto verifica o localStorage, exibe tela de carregamento neutra
+  if (autenticado === null) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  // 🔒 Se NÃO estiver autenticado, renderiza a Tela de Bloqueio
+  if (!autenticado) {
+    return (
+      <main className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans text-gray-900">
+        <div className="max-w-sm w-full bg-white rounded-2xl shadow-md p-6 border text-center space-y-4">
+          <div className="mx-auto w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+            <Lock className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-800">Sistema Privado</h1>
+            <p className="text-sm text-gray-500 mt-1">Insira a chave de acesso da família para continuar.</p>
+          </div>
+          <form onSubmit={lidarComAutenticacao} className="space-y-3">
+            <input
+              type="password"
+              placeholder="Digite a senha de acesso"
+              value={senhaInput}
+              onChange={(e) => setSenhaInput(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm text-center focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="w-full bg-blue-600 text-white rounded-xl py-3 font-bold text-sm hover:bg-blue-700 active:scale-98 transition-all"
+            >
+              Confirmar Chave
+            </button>
+          </form>
+        </div>
+      </main>
+    );
+  }
+
+  // 🔓 Se ESTIVER autenticado, abre o app normalmente
   return (
     <main className="min-h-screen bg-gray-50 p-4 font-sans text-gray-900">
       <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-6 mt-8">
@@ -121,44 +187,23 @@ export default function Home() {
               <label className="block text-sm font-medium mb-3">Anexar Nota Fiscal</label>
               
               {imagem ? (
-                // Se já escolheu um arquivo, mostra o nome dele bem bonito
                 <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-xl p-4 text-center text-sm font-medium flex items-center justify-center gap-2">
                   <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
                   <span className="truncate max-w-[200px]">{imagem.name}</span>
-                  <button 
-                    type="button" 
-                    onClick={() => setImagem(null)} 
-                    className="text-xs text-red-500 ml-2 underline font-semibold"
-                  >
-                    Alterar
-                  </button>
+                  <button type="button" onClick={() => setImagem(null)} className="text-xs text-red-500 ml-2 underline font-semibold">Alterar</button>
                 </div>
               ) : (
-                // Se não escolheu, mostra as DUAS opções lado a lado de forma clara
                 <div className="grid grid-cols-2 gap-3">
-                  {/* Opção 1: Abrir Câmera Direto */}
                   <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl py-6 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all active:scale-98">
                     <Camera className="w-6 h-6 text-blue-500 mb-2" />
                     <span className="text-xs font-bold text-gray-700">Tirar Foto</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      onChange={(e) => setImagem(e.target.files?.[0] || null)}
-                    />
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setImagem(e.target.files?.[0] || null)} />
                   </label>
 
-                  {/* Opção 2: Escolher da Galeria/Prints */}
                   <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl py-6 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all active:scale-98">
                     <ImageIcon className="w-6 h-6 text-emerald-500 mb-2" />
                     <span className="text-xs font-bold text-gray-700">Abrir Galeria</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => setImagem(e.target.files?.[0] || null)}
-                    />
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => setImagem(e.target.files?.[0] || null)} />
                   </label>
                 </div>
               )}
@@ -170,13 +215,9 @@ export default function Home() {
               className="w-full bg-blue-600 text-white rounded-lg p-4 font-bold flex justify-center items-center gap-2 hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" /> Analisando IA...
-                </>
+                <><Loader2 className="w-5 h-5 animate-spin" /> Analisando IA...</>
               ) : (
-                <>
-                  <Upload className="w-5 h-5" /> Analisar Nota
-                </>
+                <><Upload className="w-5 h-5" /> Analisar Nota</>
               )}
             </button>
           </form>
@@ -195,20 +236,9 @@ export default function Home() {
             </div>
 
             <div className="flex gap-2 mt-6">
-              <button
-                onClick={() => setResultado(null)}
-                disabled={salvando}
-                className="flex-1 bg-gray-200 text-gray-800 p-3 rounded-lg font-bold disabled:opacity-70"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={salvarNoBanco}
-                disabled={salvando}
-                className="flex-1 bg-green-600 text-white p-3 rounded-lg font-bold flex justify-center items-center gap-2 disabled:opacity-70"
-              >
-                {salvando ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                Confirmar
+              <button onClick={() => setResultado(null)} disabled={salvando} className="flex-1 bg-gray-200 text-gray-800 p-3 rounded-lg font-bold">Cancelar</button>
+              <button onClick={salvarNoBanco} disabled={salvando} className="flex-1 bg-green-600 text-white p-3 rounded-lg font-bold flex justify-center items-center gap-2">
+                {salvando ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} Confirmar
               </button>
             </div>
           </div>

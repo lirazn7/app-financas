@@ -1,11 +1,12 @@
 "use client";
 
+// Garante que a Vercel não tente conectar ao banco de dados no momento do deploy
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Bar, Pie, Doughnut } from "react-chartjs-2";
-import { Loader2, ArrowLeft, TrendingUp, Calendar, CreditCard } from "lucide-react";
+import { Loader2, ArrowLeft, TrendingUp, Calendar, CreditCard, Lock } from "lucide-react";
 import Link from "next/link";
 import {
   Chart as ChartJS,
@@ -29,6 +30,10 @@ ChartJS.register(
 );
 
 export default function Dashboard() {
+  // Estados para a barreira de segurança privada
+  const [autenticado, setAutenticado] = useState<boolean | null>(null);
+  const [senhaInput, setSenhaInput] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [todosGastos, setTodosGastos] = useState<any[]>([]);
   const [gastosFiltrados, setGastosFiltrados] = useState<any[]>([]);
@@ -38,42 +43,71 @@ export default function Dashboard() {
   const [totalGasto, setTotalGasto] = useState(0);
   const [dadosCategorias, setDadosCategorias] = useState<{ [key: string]: number }>({});
   const [dadosDias, setDadosDias] = useState<{ [key: string]: number }>({});
-  const [dadosPagamentos, setDadosPagamentos] = useState<{ [key: string]: number }>({}); // 👈 Nova state para pagamentos
+  const [dadosPagamentos, setDadosPagamentos] = useState<{ [key: string]: number }>({});
 
+  // 1. Verifica se o dispositivo possui a senha correta salva antes de liberar o banco
   useEffect(() => {
-    async function buscarGastos() {
-      try {
-        const { data, error } = await supabase
-          .from("gastos")
-          .select("*")
-          .order("data_compra", { ascending: true });
+    const tokenSalvo = localStorage.getItem("app_financas_token");
+    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
 
-        if (error) throw error;
-
-        if (data) {
-          setTodosGastos(data);
-          
-          const meses = Array.from(
-            new Set(
-              data
-                .map((item) => item.data_compra ? item.data_compra.substring(0, 7) : null)
-                .filter(Boolean)
-            )
-          ) as string[];
-          
-          setMesesDisponiveis(meses);
-          setGastosFiltrados(data);
-        }
-      } catch (error) {
-        console.error("Erro ao carregar dados do dashboard:", error);
-      } finally {
-        setLoading(false);
-      }
+    if (tokenSalvo && tokenSalvo === tokenCorreto) {
+      setAutenticado(true);
+      buscarGastos();
+    } else {
+      setAutenticado(false);
+      setLoading(false);
     }
-    buscarGastos();
   }, []);
 
+  async function buscarGastos() {
+    try {
+      const { data, error } = await supabase
+        .from("gastos")
+        .select("*")
+        .order("data_compra", { ascending: true });
+
+      if (error) throw error;
+
+      if (data) {
+        setTodosGastos(data);
+        
+        const meses = Array.from(
+          new Set(
+            data
+              .map((item) => item.data_compra ? item.data_compra.substring(0, 7) : null)
+              .filter(Boolean)
+          )
+        ) as string[];
+        
+        setMesesDisponiveis(meses);
+        setGastosFiltrados(data);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar dados do dashboard:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // 2. Se os pais entrarem direto pelo link do dashboard, permite realizar a autenticação por aqui também
+  const lidarComAutenticacao = (e: React.FormEvent) => {
+    e.preventDefault();
+    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
+
+    if (senhaInput === tokenCorreto) {
+      localStorage.setItem("app_financas_token", senhaInput);
+      setAutenticado(true);
+      setLoading(true);
+      buscarGastos();
+    } else {
+      alert("⚠️ Senha incorreta! Acesso negado.");
+    }
+  };
+
+  // Recalcula os gráficos e agrupamentos sempre que o mês selecionado mudar
   useEffect(() => {
+    if (!autenticado) return;
+
     let filtrados = todosGastos;
 
     if (mesSelecionado !== "todos") {
@@ -89,7 +123,7 @@ export default function Dashboard() {
 
     const categorias: { [key: string]: number } = {};
     const dias: { [key: string]: number } = {};
-    const pagamentos: { [key: string]: number } = {}; // 👈 Objeto temporário para agrupar
+    const pagamentos: { [key: string]: number } = {};
 
     filtrados.forEach((item) => {
       // Agrupar Categorias
@@ -112,8 +146,8 @@ export default function Dashboard() {
 
     setDadosCategorias(categorias);
     setDadosDias(dias);
-    setDadosPagamentos(pagamentos); // 👈 Salva no state
-  }, [mesSelecionado, todosGastos]);
+    setDadosPagamentos(pagamentos);
+  }, [mesSelecionado, todosGastos, autenticado]);
 
   const formatarMesAno = (mesAno: string) => {
     const [ano, mes] = mesAno.split("-");
@@ -135,7 +169,6 @@ export default function Dashboard() {
     ],
   };
 
-  // 👈 Configuração do novo Gráfico de Formas de Pagamento (Formato Rosca/Doughnut)
   const dataPagamentos = {
     labels: Object.keys(dadosPagamentos),
     datasets: [
@@ -159,7 +192,7 @@ export default function Dashboard() {
     ],
   };
 
-  if (loading) {
+  if (autenticado === null || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -167,6 +200,39 @@ export default function Dashboard() {
     );
   }
 
+  // 🔒 Se NÃO estiver autenticado, exibe a mesma tela de bloqueio da Home
+  if (!autenticado) {
+    return (
+      <main className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans text-gray-900">
+        <div className="max-w-sm w-full bg-white rounded-2xl shadow-md p-6 border text-center space-y-4">
+          <div className="mx-auto w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+            <Lock className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-800">Sistema Privado</h1>
+            <p className="text-sm text-gray-500 mt-1">Insira a chave de acesso da família para visualizar os relatórios.</p>
+          </div>
+          <form onSubmit={lidarComAutenticacao} className="space-y-3">
+            <input
+              type="password"
+              placeholder="Digite a senha de acesso"
+              value={senhaInput}
+              onChange={(e) => setSenhaInput(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm text-center focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="w-full bg-blue-600 text-white rounded-xl py-3 font-bold text-sm hover:bg-blue-700 active:scale-98 transition-all"
+            >
+              Confirmar Chave
+            </button>
+          </form>
+        </div>
+      </main>
+    );
+  }
+
+  // 🔓 Se ESTIVER autenticado, carrega todos os relatórios mobile-first normalmente
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-6 font-sans text-gray-900 antialiased">
       <div className="max-w-md mx-auto space-y-5">
@@ -216,7 +282,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* 👇 NOVO CARD ADICIONADO: Gráfico de Formas de Pagamento 👇 */}
+        {/* Card 2: Gráfico de Formas de Pagamento */}
         <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-200/80">
           <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-green-500" /> Formas de Pagamento

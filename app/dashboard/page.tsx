@@ -30,7 +30,6 @@ ChartJS.register(
 );
 
 export default function Dashboard() {
-  // Estados para a barreira de segurança privada
   const [autenticado, setAutenticado] = useState<boolean | null>(null);
   const [senhaInput, setSenhaInput] = useState("");
 
@@ -75,12 +74,12 @@ export default function Dashboard() {
     }
   }
 
-  // 1. Verifica se o dispositivo possui a senha correta salva antes de liberar o banco
+  // 👇 Correção: Lê APENAS da Variável de Ambiente (Removemos a senha chumbada)
   useEffect(() => {
     const tokenSalvo = localStorage.getItem("app_financas_token");
-    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN || "SenhaDosPais2026"; // 👈 Lembra de usar a mesma aqui
+    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
 
-    if (tokenSalvo && tokenSalvo === tokenCorreto) {
+    if (tokenSalvo && tokenCorreto && tokenSalvo === tokenCorreto) {
       setAutenticado(true);
       buscarGastos();
     } else {
@@ -89,12 +88,11 @@ export default function Dashboard() {
     }
   }, []);
 
-  // 2. Função unificada de autenticação (apenas UMA definição aqui)
   const lidarComAutenticacao = (e: React.FormEvent) => {
     e.preventDefault();
-    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN || "SenhaDosPais2026"; // 👈 Lembra de usar a mesma aqui
+    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
 
-    if (senhaInput === tokenCorreto) {
+    if (tokenCorreto && senhaInput === tokenCorreto) {
       localStorage.setItem("app_financas_token", senhaInput);
       setAutenticado(true);
       setLoading(true);
@@ -104,7 +102,6 @@ export default function Dashboard() {
     }
   };
 
-  // Recalcula os gráficos e agrupamentos sempre que o mês selecionado mudar
   useEffect(() => {
     if (!autenticado) return;
 
@@ -126,15 +123,12 @@ export default function Dashboard() {
     const payments: { [key: string]: number } = {};
 
     filtrados.forEach((item) => {
-      // Agrupar Categorias
       const cat = item.categoria || "Outros";
       categories[cat] = (categories[cat] || 0) + (item.valor || 0);
 
-      // Agrupar Formas de Pagamento
       const pag = item.forma_pagamento || "Não identificado";
       payments[pag] = (payments[pag] || 0) + (item.valor || 0);
 
-      // Agrupar Dias
       if (item.data_compra) {
         const [ano, mes, dia] = item.data_compra.split("-");
         const diaFormatado = `${dia}/${mes}`;
@@ -200,7 +194,6 @@ export default function Dashboard() {
     );
   }
 
-  // 🔒 Se NÃO estiver autenticado, exibe a tela de bloqueio
   if (!autenticado) {
     return (
       <main className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans text-gray-900">
@@ -232,7 +225,6 @@ export default function Dashboard() {
     );
   }
 
-  // 🔓 Se ESTIVER autenticado, carrega todos os relatórios
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-6 font-sans text-gray-900 antialiased">
       <div className="max-w-md mx-auto space-y-5">

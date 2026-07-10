@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Camera, Upload, Loader2, CheckCircle, Save, BarChart3, Image as ImageIcon, Lock } from "lucide-react";
+import { Camera, Upload, Loader2, CheckCircle, Save, BarChart3, Image as ImageIcon, Lock, Pencil } from "lucide-react";
 import { supabase } from "../lib/supabase"; 
 import Link from "next/link"; 
 
@@ -9,13 +9,23 @@ export default function Home() {
   const [autenticado, setAutenticado] = useState<boolean | null>(null);
   const [senhaInput, setSenhaInput] = useState("");
   
+  const [modoManual, setModoManual] = useState(false);
+
   const [imagem, setImagem] = useState<File | null>(null);
   const [contexto, setContexto] = useState("");
+  
+  const [formManual, setFormManual] = useState({
+    estabelecimento: "",
+    valor: "",
+    data_compra: new Date().toISOString().split("T")[0], 
+    categoria: "Alimentação",
+    forma_pagamento: "Débito"
+  });
+
   const [loading, setLoading] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [resultado, setResultado] = useState<any>(null);
 
-  // Verifica o token de ambiente
   useEffect(() => {
     const tokenSalvo = localStorage.getItem("app_financas_token");
     const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
@@ -39,59 +49,69 @@ export default function Home() {
     }
   };
 
-  // 👇 NOVA FUNÇÃO: Comprime a imagem, redimensiona e converte para JPEG
   const comprimirImagem = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
+      // Impede crash com imagens vazias geradas por celulares com bug de RAM
+      if (file.size === 0) {
+        return reject(new Error("A câmera retornou uma imagem vazia. Tente afastar um pouco a câmera ou usar uma foto da galeria."));
+      }
+
+      const img = new Image();
+      // O segredo para não estourar a memória do Poco/Xiaomi:
+      const objectUrl = URL.createObjectURL(file);
+      img.src = objectUrl;
+      
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
         
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          // Resolução máxima de 1200px (mais que suficiente para a IA ler textos)
-          const MAX_WIDTH = 1200; 
-          const MAX_HEIGHT = 1200;
-          let width = img.width;
-          let height = img.height;
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 1200; 
+        const MAX_HEIGHT = 1200;
+        let width = img.width;
+        let height = img.height;
 
-          // Calcula a nova proporção sem distorcer a imagem
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
           }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
 
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          ctx?.drawImage(img, 0, 0, width, height);
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        
+        if (!ctx) {
+          return reject(new Error("O navegador não suportou o processamento da imagem."));
+        }
 
-          // Força o formato JPEG com 70% de qualidade (extremamente leve e resolve erros de HEIC/PNG)
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
-          const base64String = dataUrl.split(",")[1];
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+        const base64String = dataUrl.split(",")[1];
+        
+        if (!base64String || base64String === "") {
+          reject(new Error("Falha na conversão da imagem no dispositivo."));
+        } else {
           resolve(base64String);
-        };
-        img.onerror = (error) => reject(error);
+        }
       };
-      reader.onerror = (error) => reject(error);
+      
+      img.onerror = () => reject(new Error("Não foi possível carregar a imagem no navegador. Verifique se não é um formato HEIC não suportado."));
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmitIA = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!imagem) return alert("Por favor, selecione uma imagem primeiro!");
 
     setLoading(true);
     try {
-      // Usamos a nova função de compressão aqui
       const base64 = await comprimirImagem(imagem);
       
       const res = await fetch("/api/ler-nota", {
@@ -107,11 +127,31 @@ export default function Home() {
       } else {
         alert("Erro na IA: " + (dados.error || "Erro desconhecido"));
       }
-    } catch (error) {
-      alert("Erro ao enviar a imagem.");
+    } catch (error: any) {
+      alert("⚠️ Erro no celular: " + error.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmitManual = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formManual.estabelecimento || !formManual.valor) {
+      return alert("Preencha pelo menos o estabelecimento e o valor!");
+    }
+    
+    setResultado({
+      estabelecimento: formManual.estabelecimento,
+      valor: parseFloat(formManual.valor),
+      data_compra: formManual.data_compra,
+      categoria: formManual.categoria,
+      forma_pagamento: formManual.forma_pagamento
+    });
+  };
+
+  const lidarComMudancaManual = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormManual(prev => ({ ...prev, [name]: value }));
   };
 
   const salvarNoBanco = async () => {
@@ -130,16 +170,25 @@ export default function Home() {
             data_compra: dataValida,
             categoria: resultado.categoria,
             forma_pagamento: resultado.forma_pagamento, 
-            contexto: contexto
+            contexto: contexto || "Inserção Manual"
           }
         ]);
 
       if (error) throw error;
 
       alert("🎉 Gasto salvo com sucesso!");
+      
       setResultado(null);
       setImagem(null);
       setContexto("");
+      setFormManual({
+        estabelecimento: "",
+        valor: "",
+        data_compra: new Date().toISOString().split("T")[0],
+        categoria: "Alimentação",
+        forma_pagamento: "Débito"
+      });
+      
     } catch (error: any) {
       alert("Erro ao salvar no banco: " + error.message);
     } finally {
@@ -150,7 +199,7 @@ export default function Home() {
   if (autenticado === null) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -203,60 +252,117 @@ export default function Home() {
         </div>
 
         {!resultado ? (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium mb-2">O que foi essa compra?</label>
-              <input
-                type="text"
-                placeholder="Ex: Compras para o almoço de domingo"
-                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                value={contexto}
-                onChange={(e) => setContexto(e.target.value)}
-              />
+          <>
+            <div className="flex bg-gray-100 p-1.5 rounded-xl mb-6">
+              <button 
+                onClick={() => setModoManual(false)} 
+                className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${!modoManual ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                <Camera className="w-4 h-4" /> Escanear
+              </button>
+              <button 
+                onClick={() => setModoManual(true)} 
+                className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${modoManual ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                <Pencil className="w-4 h-4" /> Digitar
+              </button>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-3">Anexar Nota Fiscal</label>
+            {!modoManual ? (
+              <form onSubmit={handleSubmitIA} className="space-y-6 animate-in fade-in duration-300">
+                <div>
+                  <label className="block text-sm font-medium mb-2">O que foi essa compra? (Opcional)</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Almoço de domingo"
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    value={contexto}
+                    onChange={(e) => setContexto(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-3">Anexar Nota Fiscal</label>
+                  {imagem ? (
+                    <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-xl p-4 text-center text-sm font-medium flex items-center justify-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                      <span className="truncate max-w-[200px]">{imagem.name}</span>
+                      <button type="button" onClick={() => setImagem(null)} className="text-xs text-red-500 ml-2 underline font-semibold">Alterar</button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl py-6 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all active:scale-98">
+                        <Camera className="w-6 h-6 text-blue-500 mb-2" />
+                        <span className="text-xs font-bold text-gray-700">Tirar Foto</span>
+                        <input type="file" accept="image/jpeg, image/png, image/jpg" capture="environment" className="hidden" onChange={(e) => setImagem(e.target.files?.[0] || null)} />
+                      </label>
+                      <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl py-6 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all active:scale-98">
+                        <ImageIcon className="w-6 h-6 text-emerald-500 mb-2" />
+                        <span className="text-xs font-bold text-gray-700">Abrir Galeria</span>
+                        <input type="file" accept="image/jpeg, image/png, image/jpg" className="hidden" onChange={(e) => setImagem(e.target.files?.[0] || null)} />
+                      </label>
+                    </div>
+                  )}
+                </div>
+
+                <button type="submit" disabled={loading || !imagem} className="w-full bg-blue-600 text-white rounded-lg p-4 font-bold flex justify-center items-center gap-2 hover:bg-blue-700 disabled:opacity-50 cursor-pointer">
+                  {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Analisando IA...</> : <><Upload className="w-5 h-5" /> Analisar Nota</>}
+                </button>
+              </form>
+            ) : (
               
-              {imagem ? (
-                <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-xl p-4 text-center text-sm font-medium flex items-center justify-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                  <span className="truncate max-w-[200px]">{imagem.name}</span>
-                  <button type="button" onClick={() => setImagem(null)} className="text-xs text-red-500 ml-2 underline font-semibold">Alterar</button>
+              <form onSubmit={handleSubmitManual} className="space-y-4 animate-in fade-in duration-300">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Estabelecimento *</label>
+                  <input required name="estabelecimento" value={formManual.estabelecimento} onChange={lidarComMudancaManual} type="text" placeholder="Ex: Supermercado Extra" className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
                 </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl py-6 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all active:scale-98">
-                    <Camera className="w-6 h-6 text-blue-500 mb-2" />
-                    <span className="text-xs font-bold text-gray-700">Tirar Foto</span>
-                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setImagem(e.target.files?.[0] || null)} />
-                  </label>
-
-                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl py-6 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all active:scale-98">
-                    <ImageIcon className="w-6 h-6 text-emerald-500 mb-2" />
-                    <span className="text-xs font-bold text-gray-700">Abrir Galeria</span>
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => setImagem(e.target.files?.[0] || null)} />
-                  </label>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Valor (R$) *</label>
+                    <input required name="valor" value={formManual.valor} onChange={lidarComMudancaManual} type="number" step="0.01" placeholder="0.00" className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Data</label>
+                    <input required name="data_compra" value={formManual.data_compra} onChange={lidarComMudancaManual} type="date" className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                  </div>
                 </div>
-              )}
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading || !imagem}
-              className="w-full bg-blue-600 text-white rounded-lg p-4 font-bold flex justify-center items-center gap-2 hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-            >
-              {loading ? (
-                <><Loader2 className="w-5 h-5 animate-spin" /> Analisando IA...</>
-              ) : (
-                <><Upload className="w-5 h-5" /> Analisar Nota</>
-              )}
-            </button>
-          </form>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Categoria</label>
+                    <select name="categoria" value={formManual.categoria} onChange={lidarComMudancaManual} className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                      <option value="Alimentação">Alimentação</option>
+                      <option value="Lazer">Lazer</option>
+                      <option value="Saúde">Saúde</option>
+                      <option value="Transporte">Transporte</option>
+                      <option value="Casa">Casa</option>
+                      <option value="Outros">Outros</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Pagamento</label>
+                    <select name="forma_pagamento" value={formManual.forma_pagamento} onChange={lidarComMudancaManual} className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                      <option value="Débito">Débito</option>
+                      <option value="Crédito">Crédito</option>
+                      <option value="Pix">Pix</option>
+                      <option value="Dinheiro">Dinheiro</option>
+                      <option value="Vale Alimentação">Vale Alimentação</option>
+                      <option value="Vale Refeição">Vale Refeição</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button type="submit" className="w-full bg-blue-600 text-white rounded-lg p-4 font-bold flex justify-center items-center gap-2 hover:bg-blue-700 mt-2">
+                  Avançar
+                </button>
+              </form>
+            )}
+          </>
         ) : (
           <div className="space-y-4 animate-in fade-in duration-500">
             <div className="flex items-center gap-2 text-green-600 mb-4 font-bold text-lg">
-              <CheckCircle className="w-6 h-6" /> Leitura Concluída!
+              <CheckCircle className="w-6 h-6" /> Resumo do Gasto
             </div>
             
             <div className="bg-gray-50 p-4 rounded-lg space-y-2 border">

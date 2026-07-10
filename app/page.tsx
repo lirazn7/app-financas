@@ -15,42 +15,71 @@ export default function Home() {
   const [salvando, setSalvando] = useState(false);
   const [resultado, setResultado] = useState<any>(null);
 
-  // Verifica se os pais já digitaram a senha anteriormente no dispositivo
+  // Verifica o token de ambiente
   useEffect(() => {
-  const tokenSalvo = localStorage.getItem("app_financas_token");
-  
-  // Define aqui a senha fixa da família (muda 'SenhaDosPais2026' para a senha real que queres)
-  const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN || "SenhaDosPais2026";
+    const tokenSalvo = localStorage.getItem("app_financas_token");
+    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
 
-  if (tokenSalvo && tokenSalvo === tokenCorreto) {
-    setAutenticado(true);
-  } else {
-    setAutenticado(false);
-  }
-}, []);
+    if (tokenSalvo && tokenCorreto && tokenSalvo === tokenCorreto) {
+      setAutenticado(true);
+    } else {
+      setAutenticado(false);
+    }
+  }, []);
 
-// 2. Altera a verificação do botão de clique (lidarComAutenticacao):
-const lidarComAutenticacao = (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  // Coloca exatamente a mesma senha aqui embaixo também!
-  const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN || "SenhaDosPais2026";
+  const lidarComAutenticacao = (e: React.FormEvent) => {
+    e.preventDefault();
+    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
 
-  if (senhaInput === tokenCorreto) {
-    localStorage.setItem("app_financas_token", senhaInput);
-    setAutenticado(true);
-  } else {
-    alert("⚠️ Senha incorreta! Acesso negado.");
-  }
-};
+    if (tokenCorreto && senhaInput === tokenCorreto) {
+      localStorage.setItem("app_financas_token", senhaInput);
+      setAutenticado(true);
+    } else {
+      alert("⚠️ Senha incorreta! Acesso negado.");
+    }
+  };
 
-  const converterParaBase64 = (file: File): Promise<string> => {
+  // 👇 NOVA FUNÇÃO: Comprime a imagem, redimensiona e converte para JPEG
+  const comprimirImagem = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
-      reader.onload = () => {
-        const base64String = reader.result?.toString().split(",")[1] || "";
-        resolve(base64String);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          // Resolução máxima de 1200px (mais que suficiente para a IA ler textos)
+          const MAX_WIDTH = 1200; 
+          const MAX_HEIGHT = 1200;
+          let width = img.width;
+          let height = img.height;
+
+          // Calcula a nova proporção sem distorcer a imagem
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          // Força o formato JPEG com 70% de qualidade (extremamente leve e resolve erros de HEIC/PNG)
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+          const base64String = dataUrl.split(",")[1];
+          resolve(base64String);
+        };
+        img.onerror = (error) => reject(error);
       };
       reader.onerror = (error) => reject(error);
     });
@@ -62,7 +91,8 @@ const lidarComAutenticacao = (e: React.FormEvent) => {
 
     setLoading(true);
     try {
-      const base64 = await converterParaBase64(imagem);
+      // Usamos a nova função de compressão aqui
+      const base64 = await comprimirImagem(imagem);
       
       const res = await fetch("/api/ler-nota", {
         method: "POST",
@@ -117,7 +147,6 @@ const lidarComAutenticacao = (e: React.FormEvent) => {
     }
   };
 
-  // Enquanto verifica o localStorage, exibe tela de carregamento neutra
   if (autenticado === null) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -126,7 +155,6 @@ const lidarComAutenticacao = (e: React.FormEvent) => {
     );
   }
 
-  // 🔒 Se NÃO estiver autenticado, renderiza a Tela de Bloqueio
   if (!autenticado) {
     return (
       <main className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans text-gray-900">
@@ -158,7 +186,6 @@ const lidarComAutenticacao = (e: React.FormEvent) => {
     );
   }
 
-  // 🔓 Se ESTIVER autenticado, abre o app normalmente
   return (
     <main className="min-h-screen bg-gray-50 p-4 font-sans text-gray-900">
       <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-6 mt-8">

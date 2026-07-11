@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Bar, Pie, Doughnut } from "react-chartjs-2";
-import { Loader2, ArrowLeft, TrendingUp, Calendar, CreditCard, Lock, ChevronDown, Table as TableIcon, LayoutDashboard, Filter } from "lucide-react";
+import { Loader2, ArrowLeft, TrendingUp, Calendar, CreditCard, Lock, ChevronDown, Table as TableIcon, LayoutDashboard, Filter, Trash2, Pencil, X, Save } from "lucide-react";
 import Link from "next/link";
 import {
   Chart as ChartJS,
@@ -33,14 +33,16 @@ export default function Dashboard() {
   const [mesesDisponiveis, setMesesDisponiveis] = useState<string[]>([]);
   const [mesSelecionado, setMesSelecionado] = useState<string>("todos");
   
-  // Controle de Abas
+  // Controle de Abas e Filtros
   const [abaAtual, setAbaAtual] = useState<"graficos" | "tabela">("graficos");
-  
-  // Filtros da Tabela
   const [filtroTabelaData, setFiltroTabelaData] = useState("");
   const [filtroTabelaCategoria, setFiltroTabelaCategoria] = useState("todas");
   const [filtroTabelaPagamento, setFiltroTabelaPagamento] = useState("todas");
   
+  // Controle de Edição e Exclusão
+  const [gastoEditando, setGastoEditando] = useState<any>(null);
+  const [loadingEdit, setLoadingEdit] = useState(false);
+
   const [totalGasto, setTotalGasto] = useState(0);
   const [dadosCategorias, setDadosCategorias] = useState<{ [key: string]: number }>({});
   const [dadosDias, setDadosDias] = useState<{ [key: string]: number }>({});
@@ -125,6 +127,49 @@ export default function Dashboard() {
     setDadosDias(days);
   }, [mesSelecionado, todosGastos, autenticado]);
 
+  // 🗑️ Função para Excluir Gasto
+  const deletarGasto = async (id: number) => {
+    if (!window.confirm("Tem certeza que deseja excluir este gasto? Esta ação não pode ser desfeita.")) return;
+    try {
+      const { error } = await supabase.from("gastos").delete().eq("id", id);
+      if (error) throw error;
+      
+      const novaLista = todosGastos.filter(g => g.id !== id);
+      setTodosGastos(novaLista);
+    } catch (error: any) {
+      alert("Erro ao excluir: " + error.message);
+    }
+  };
+
+  // ✏️ Função para Salvar Edição
+  const salvarEdicao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoadingEdit(true);
+    try {
+      const valorNumerico = parseFloat(gastoEditando.valor);
+      
+      const { error } = await supabase.from("gastos").update({
+        estabelecimento: gastoEditando.estabelecimento,
+        valor: valorNumerico,
+        data_compra: gastoEditando.data_compra,
+        categoria: gastoEditando.categoria,
+        forma_pagamento: gastoEditando.forma_pagamento
+      }).eq("id", gastoEditando.id);
+      
+      if (error) throw error;
+      
+      const novaLista = todosGastos.map(g => 
+        g.id === gastoEditando.id ? { ...g, ...gastoEditando, valor: valorNumerico } : g
+      );
+      setTodosGastos(novaLista);
+      setGastoEditando(null);
+    } catch (error: any) {
+      alert("Erro ao atualizar: " + error.message);
+    } finally {
+      setLoadingEdit(false);
+    }
+  };
+
   const formatarMesAno = (mesAno: string) => {
     const [ano, mes] = mesAno.split("-");
     const mesesNome = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -165,7 +210,6 @@ export default function Dashboard() {
     );
   }
 
-  // Lógica de Filtro da Tabela
   const tabelaFiltrada = gastosFiltrados.filter(g => {
     if (filtroTabelaData && g.data_compra !== filtroTabelaData) return false;
     if (filtroTabelaCategoria !== "todas" && g.categoria !== filtroTabelaCategoria) return false;
@@ -174,7 +218,7 @@ export default function Dashboard() {
   });
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-6 font-sans text-gray-900 antialiased">
+    <main className="min-h-screen bg-gray-50 px-4 py-6 font-sans text-gray-900 antialiased relative">
       <div className="max-w-md mx-auto space-y-5">
         
         <Link href="/" className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-blue-600 transition-colors">
@@ -275,7 +319,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="space-y-4 animate-in fade-in duration-300">
-            {/* Filtros da Tabela */}
+            {/* Filtros da Tabela com Valores Estáticos */}
             <div className="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-sm space-y-3">
               <h3 className="text-sm font-bold flex items-center gap-2 text-gray-800"><Filter className="w-4 h-4 text-blue-500" /> Filtros da Tabela</h3>
               <div className="grid grid-cols-1 gap-3">
@@ -283,26 +327,37 @@ export default function Dashboard() {
                 <div className="grid grid-cols-2 gap-3">
                   <select value={filtroTabelaCategoria} onChange={e => setFiltroTabelaCategoria(e.target.value)} className="w-full text-sm bg-gray-50 border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 truncate">
                     <option value="todas">Todas Categorias</option>
-                    {Array.from(new Set(gastosFiltrados.map(g => g.categoria).filter(Boolean))).map(cat => <option key={cat as string} value={cat as string}>{cat as string}</option>)}
+                    <option value="Alimentação">Alimentação (Mercados)</option>
+                    <option value="Comer Fora">Comer Fora (Restaurantes)</option>
+                    <option value="Lazer">Lazer</option>
+                    <option value="Saúde">Saúde</option>
+                    <option value="Transporte">Transporte</option>
+                    <option value="Casa">Casa</option>
+                    <option value="Outros">Outros</option>
                   </select>
                   <select value={filtroTabelaPagamento} onChange={e => setFiltroTabelaPagamento(e.target.value)} className="w-full text-sm bg-gray-50 border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 truncate">
                     <option value="todas">Todos Pagamentos</option>
-                    {Array.from(new Set(gastosFiltrados.map(g => g.forma_pagamento).filter(Boolean))).map(pag => <option key={pag as string} value={pag as string}>{pag as string}</option>)}
+                    <option value="Débito">Débito</option>
+                    <option value="Crédito">Crédito</option>
+                    <option value="Pix">Pix</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                    <option value="Vale Alimentação">Vale Alimentação</option>
+                    <option value="Vale Refeição">Vale Refeição</option>
                   </select>
                 </div>
               </div>
             </div>
 
             {/* Tabela Responsiva */}
-            <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden mb-8">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left text-gray-600">
                   <thead className="text-xs text-gray-500 uppercase bg-gray-50/80 border-b border-gray-200/80">
                     <tr>
                       <th className="px-4 py-3 whitespace-nowrap">Data</th>
                       <th className="px-4 py-3 whitespace-nowrap">Estabelecimento</th>
-                      <th className="px-4 py-3 whitespace-nowrap">Categoria / Pagamento</th>
-                      <th className="px-4 py-3 whitespace-nowrap text-right">Valor</th>
+                      <th className="px-4 py-3 whitespace-nowrap">Detalhes</th>
+                      <th className="px-4 py-3 whitespace-nowrap text-right">Valor e Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -310,12 +365,18 @@ export default function Dashboard() {
                       tabelaFiltrada.map(g => (
                         <tr key={g.id} className="hover:bg-gray-50/50 transition-colors">
                           <td className="px-4 py-3.5 whitespace-nowrap text-gray-900 font-medium">{g.data_compra ? g.data_compra.split('-').reverse().join('/') : 'S/ Data'}</td>
-                          <td className="px-4 py-3.5 max-w-[140px] truncate" title={g.estabelecimento}>{g.estabelecimento}</td>
+                          <td className="px-4 py-3.5 max-w-[120px] truncate" title={g.estabelecimento}>{g.estabelecimento}</td>
                           <td className="px-4 py-3.5 space-y-1.5">
                             <span className="block bg-blue-50 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded max-w-max truncate">{g.categoria}</span>
                             <span className="block bg-green-50 text-green-700 text-[10px] font-semibold px-2 py-0.5 rounded max-w-max truncate">{g.forma_pagamento}</span>
                           </td>
-                          <td className="px-4 py-3.5 text-right font-bold text-gray-900 whitespace-nowrap">R$ {g.valor.toFixed(2)}</td>
+                          <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                            <span className="block font-bold text-gray-900 mb-1.5">R$ {g.valor.toFixed(2)}</span>
+                            <div className="flex justify-end gap-1.5">
+                              <button onClick={() => setGastoEditando(g)} className="text-blue-500 hover:bg-blue-100 p-1.5 rounded transition-colors"><Pencil className="w-4 h-4" /></button>
+                              <button onClick={() => deletarGasto(g.id)} className="text-red-500 hover:bg-red-100 p-1.5 rounded transition-colors"><Trash2 className="w-4 h-4" /></button>
+                            </div>
+                          </td>
                         </tr>
                       ))
                     ) : (
@@ -328,6 +389,64 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Modal de Edição */}
+      {gastoEditando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50">
+              <h3 className="font-bold text-lg text-gray-800">Editar Gasto</h3>
+              <button onClick={() => setGastoEditando(null)} className="text-gray-400 hover:text-gray-600 bg-gray-200 hover:bg-gray-300 p-1.5 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={salvarEdicao} className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700">Estabelecimento</label>
+                <input required value={gastoEditando.estabelecimento} onChange={e => setGastoEditando({...gastoEditando, estabelecimento: e.target.value})} type="text" className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Valor (R$)</label>
+                  <input required value={gastoEditando.valor} onChange={e => setGastoEditando({...gastoEditando, valor: e.target.value})} type="number" step="0.01" className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Data</label>
+                  <input required value={gastoEditando.data_compra || ""} onChange={e => setGastoEditando({...gastoEditando, data_compra: e.target.value})} type="date" className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Categoria</label>
+                  <select value={gastoEditando.categoria} onChange={e => setGastoEditando({...gastoEditando, categoria: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <option value="Alimentação">Alimentação</option>
+                    <option value="Comer Fora">Comer Fora</option>
+                    <option value="Lazer">Lazer</option>
+                    <option value="Saúde">Saúde</option>
+                    <option value="Transporte">Transporte</option>
+                    <option value="Casa">Casa</option>
+                    <option value="Outros">Outros</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Pagamento</label>
+                  <select value={gastoEditando.forma_pagamento} onChange={e => setGastoEditando({...gastoEditando, forma_pagamento: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <option value="Débito">Débito</option>
+                    <option value="Crédito">Crédito</option>
+                    <option value="Pix">Pix</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                    <option value="Vale Alimentação">Vale Alimentação</option>
+                    <option value="Vale Refeição">Vale Refeição</option>
+                  </select>
+                </div>
+              </div>
+              <button type="submit" disabled={loadingEdit} className="w-full bg-blue-600 text-white rounded-lg p-3 font-bold flex justify-center items-center gap-2 mt-6 hover:bg-blue-700 transition-colors">
+                {loadingEdit ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} Salvar Alterações
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

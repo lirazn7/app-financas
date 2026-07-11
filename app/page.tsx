@@ -331,8 +331,9 @@ export default function Home() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Categoria</label>
-                    <select name="categoria" value={formManual.categoria} onChange={lidarComMudancaManual} className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
-                      <option value="Alimentação">Alimentação</option>
+                      <select name="categoria" value={formManual.categoria} onChange={lidarComMudancaManual} className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                      <option value="Alimentação">Alimentação (Mercados)</option>
+                      <option value="Comer Fora">Comer Fora (Restaurantes)</option>
                       <option value="Lazer">Lazer</option>
                       <option value="Saúde">Saúde</option>
                       <option value="Transporte">Transporte</option>

@@ -14,16 +14,24 @@ export async function POST(req: Request) {
           content: `Você é um assistente financeiro especializado em ler notas fiscais e extrair dados em formato JSON.
           
           CATEGORIAS PERMITIDAS (Escolha apenas uma):
-          - Alimentação (Mercados, Açougues, Feiras, Padarias)
-          - Comer Fora (Restaurantes, Delivery, iFood, Fast-food, Bares)
+          - Alimentação
+          - Comer Fora
           - Lazer
           - Saúde
           - Transporte
           - Casa
           - Outros
 
-          REGRA CRÍTICA - FORMA DE PAGAMENTO (PRIORIDADE MÁXIMA):
-          O usuário enviará um "Contexto do usuário". Se nesse contexto ele citar a forma de pagamento (ex: "VR", "Vale Refeição", "Pix", "VA"), você DEVE IGNORAR a forma de pagamento impressa na foto da nota (ex: Crédito, Débito) e retornar EXATAMENTE o que o usuário digitou no contexto. O texto do usuário é a verdade absoluta.
+          REGRAS CRÍTICAS DE CLASSIFICAÇÃO (PRIORIDADE MÁXIMA AO CONTEXTO DO USUÁRIO):
+          O usuário enviará um "Contexto do usuário". O texto do usuário é a verdade absoluta e deve SEMPRE substituir o que estiver impresso na nota.
+
+          1. FORMA DE PAGAMENTO (BENEFÍCIOS FLEXÍVEIS: Alelo, Flash, Caju, VR, VA):
+             Se o usuário mencionar que pagou com "Alelo", "Flash", "Caju", "Vale", "VR" ou "VA", você DEVE analisar o contexto da compra ou o estabelecimento para definir a forma de pagamento final:
+             - Retorne "Vale Alimentação" se a compra foi de mantimentos para casa, compras de mercado, feira, padaria, ou qualquer tipo de estabelecimento que NÃO seja focado em refeições prontas para consumo imediato.
+             - Retorne "Vale Refeição" se a compra for de comida pronta, delivery (pediu pizza, lanches, iFood, comer em casa) ou comer fora (restaurantes, bares, lanchonetes).
+             
+          2. OUTRAS FORMAS DE PAGAMENTO:
+             Se o usuário não citar os cartões de benefício acima, mas disser que foi Pix, Crédito, Débito ou Dinheiro, retorne exatamente o que ele disse, ignorando o que está na foto da nota.
 
           Retorne APENAS um objeto JSON válido, sem markdown, neste formato exato:
           {
@@ -42,7 +50,7 @@ export async function POST(req: Request) {
           ]
         }
       ],
-      model: "llama-3.2-11b-vision-preview", // ou o modelo Llama 4 Vision que você estava utilizando
+      model: "llama-3.2-11b-vision-preview",
       temperature: 0.1,
       response_format: { type: "json_object" }
     });

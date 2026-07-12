@@ -50,8 +50,8 @@ export async function POST(req: Request) {
           ]
         }
       ],
-      model: "llama-3.2-11b-vision-preview",
-      temperature: 0.1,
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      temperature: 0.8,
       response_format: { type: "json_object" }
     });
 

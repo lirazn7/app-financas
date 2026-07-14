@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { Bar, Pie, Doughnut } from "react-chartjs-2";
+import { Bar, Pie, Doughnut, Line } from "react-chartjs-2";
 import { Loader2, ArrowLeft, TrendingUp, Calendar, CreditCard, Lock, ChevronDown, Table as TableIcon, LayoutDashboard, Filter, Trash2, Pencil, X, Save } from "lucide-react";
 import Link from "next/link";
 import {
@@ -12,13 +12,16 @@ import {
   CategoryScale,
   LinearScale,
   BarElement,
+  LineElement, // Novo
+  PointElement, // Novo
   Title,
   Tooltip,
   Legend,
   ArcElement,
 } from "chart.js";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
+// Precisamos registrar os novos elementos de linha no ChartJS
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
 
 const CORES_CATEGORIAS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316", "#06B6D4", "#6366F1", "#84CC16", "#D946EF"];
 const CORES_PAGAMENTOS = ["#10B981", "#6366F1", "#F59E0B", "#8B5CF6", "#3B82F6", "#9CA3AF", "#F43F5E", "#14B8A6", "#84CC16", "#0EA5E9", "#D946EF", "#F97316"];
@@ -35,6 +38,8 @@ export default function Dashboard() {
   
   // Controle de Abas e Filtros
   const [abaAtual, setAbaAtual] = useState<"graficos" | "tabela">("graficos");
+  const [visaoHistorico, setVisaoHistorico] = useState<"diario" | "mensal">("diario"); // Novo estado
+  
   const [filtroTabelaData, setFiltroTabelaData] = useState("");
   const [filtroTabelaCategoria, setFiltroTabelaCategoria] = useState("todas");
   const [filtroTabelaPagamento, setFiltroTabelaPagamento] = useState("todas");
@@ -46,6 +51,7 @@ export default function Dashboard() {
   const [totalGasto, setTotalGasto] = useState(0);
   const [dadosCategorias, setDadosCategorias] = useState<{ [key: string]: number }>({});
   const [dadosDias, setDadosDias] = useState<{ [key: string]: number }>({});
+  const [dadosMeses, setDadosMeses] = useState<{ [key: string]: number }>({}); // Novo estado para grafico de linha
   const [dadosPagamentos, setDadosPagamentos] = useState<{ [key: string]: number }>({});
 
   async function buscarGastos() {
@@ -104,6 +110,7 @@ export default function Dashboard() {
 
     const categories: { [key: string]: number } = {};
     const days: { [key: string]: number } = {};
+    const monthsRaw: { [key: string]: number } = {};
     const payments: { [key: string]: number } = {};
 
     filtrados.forEach((item) => {
@@ -114,9 +121,25 @@ export default function Dashboard() {
       payments[pag] = (payments[pag] || 0) + (item.valor || 0);
 
       if (item.data_compra) {
+        // Agrupamento Diário
         const [ano, mes, dia] = item.data_compra.split("-");
         days[`${dia}/${mes}`] = (days[`${dia}/${mes}`] || 0) + (item.valor || 0);
+        
+        // Agrupamento Mensal (YYYY-MM)
+        const anoMes = item.data_compra.substring(0, 7);
+        monthsRaw[anoMes] = (monthsRaw[anoMes] || 0) + (item.valor || 0);
       }
+    });
+
+    // Ordenar os meses cronologicamente para a linha fazer sentido da esquerda para a direita
+    const mesesOrdenados = Object.keys(monthsRaw).sort();
+    const monthsProcessed: { [key: string]: number } = {};
+    const nomesDosMeses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+    mesesOrdenados.forEach(key => {
+      const [ano, mes] = key.split("-");
+      const labelFormatada = `${nomesDosMeses[parseInt(mes) - 1]}/${ano.slice(-2)}`;
+      monthsProcessed[labelFormatada] = monthsRaw[key];
     });
 
     const categoriasOrdenadas = Object.fromEntries(Object.entries(categories).sort(([, a], [, b]) => b - a));
@@ -125,9 +148,9 @@ export default function Dashboard() {
     setDadosCategorias(categoriasOrdenadas);
     setDadosPagamentos(pagamentosOrdenados);
     setDadosDias(days);
+    setDadosMeses(monthsProcessed);
   }, [mesSelecionado, todosGastos, autenticado]);
 
-  // 🗑️ Função para Excluir Gasto
   const deletarGasto = async (id: number) => {
     if (!window.confirm("Tem certeza que deseja excluir este gasto? Esta ação não pode ser desfeita.")) return;
     try {
@@ -141,7 +164,6 @@ export default function Dashboard() {
     }
   };
 
-  // ✏️ Função para Salvar Edição
   const salvarEdicao = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoadingEdit(true);
@@ -176,6 +198,7 @@ export default function Dashboard() {
     return `${mesesNome[parseInt(mes) - 1]} / ${ano}`;
   };
 
+  // Objetos de Configuração do Chart.js
   const dataPizza = {
     labels: Object.keys(dadosCategorias),
     datasets: [{ data: Object.values(dadosCategorias), backgroundColor: Object.keys(dadosCategorias).map((_, i) => CORES_CATEGORIAS[i % CORES_CATEGORIAS.length]), borderWidth: 1 }],
@@ -189,6 +212,20 @@ export default function Dashboard() {
   const dataBarras = {
     labels: Object.keys(dadosDias),
     datasets: [{ label: "Gastos no Dia (R$)", data: Object.values(dadosDias), backgroundColor: "#3B82F6", borderRadius: 6 }],
+  };
+
+  const dataLinha = {
+    labels: Object.keys(dadosMeses),
+    datasets: [{
+      label: "Gastos no Mês (R$)",
+      data: Object.values(dadosMeses),
+      borderColor: "#8B5CF6", // Roxo moderno
+      backgroundColor: "#8B5CF680",
+      borderWidth: 2,
+      tension: 0.4, // Curvatura suave da linha
+      pointBackgroundColor: "#8B5CF6",
+      fill: true,
+    }],
   };
 
   if (autenticado === null || loading) {
@@ -310,11 +347,40 @@ export default function Dashboard() {
               ) : (<p className="text-gray-400 text-xs text-center py-12">Sem dados de pagamento.</p>)}
             </div>
             
+            {/* NOVO: Card 3 - Histórico com Filtro Diário/Mensal */}
             <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-200/80">
-              <h3 className="text-base font-bold text-gray-800 mb-3">Histórico de Gastos por Dia</h3>
-              {Object.keys(dadosDias).length > 0 ? (
-                <div className="w-full h-52"><Bar data={dataBarras} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#f3f4f6' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} /></div>
-              ) : (<p className="text-gray-400 text-xs text-center py-12">Sem histórico neste período.</p>)}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-base font-bold text-gray-800">Histórico de Gastos</h3>
+                {/* Switcher Diário/Mensal */}
+                <div className="flex bg-gray-100 rounded-lg p-1 border border-gray-200">
+                  <button
+                    onClick={() => setVisaoHistorico("diario")}
+                    className={`px-3 py-1 text-[11px] font-bold rounded-md transition-colors ${visaoHistorico === "diario" ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+                  >
+                    Diário
+                  </button>
+                  <button
+                    onClick={() => setVisaoHistorico("mensal")}
+                    className={`px-3 py-1 text-[11px] font-bold rounded-md transition-colors ${visaoHistorico === "mensal" ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+                  >
+                    Mensal
+                  </button>
+                </div>
+              </div>
+
+              {visaoHistorico === "diario" ? (
+                Object.keys(dadosDias).length > 0 ? (
+                  <div className="w-full h-52 animate-in fade-in zoom-in-95 duration-300">
+                    <Bar data={dataBarras} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#f3f4f6' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} />
+                  </div>
+                ) : (<p className="text-gray-400 text-xs text-center py-12">Sem histórico neste período.</p>)
+              ) : (
+                Object.keys(dadosMeses).length > 0 ? (
+                  <div className="w-full h-52 animate-in fade-in zoom-in-95 duration-300">
+                    <Line data={dataLinha} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#f3f4f6' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} />
+                  </div>
+                ) : (<p className="text-gray-400 text-xs text-center py-12">Sem histórico mensal.</p>)
+              )}
             </div>
           </div>
         ) : (

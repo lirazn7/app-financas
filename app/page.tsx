@@ -1,13 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Camera, Upload, Loader2, CheckCircle, Save, BarChart3, Image as ImageIcon, Lock, Pencil } from "lucide-react";
+import { Camera, Upload, Loader2, CheckCircle, Save, BarChart3, Image as ImageIcon, Lock, Pencil, LogOut } from "lucide-react";
 import { supabase } from "../lib/supabase"; 
 import Link from "next/link"; 
 
 export default function Home() {
   const [autenticado, setAutenticado] = useState<boolean | null>(null);
+  const [usuarioAtual, setUsuarioAtual] = useState<any>(null);
+  
+  // Campos de login e cadastro
+  const [emailInput, setEmailInput] = useState("");
   const [senhaInput, setSenhaInput] = useState("");
+  const [modoCadastro, setModoCadastro] = useState(false);
   
   const [modoManual, setModoManual] = useState(false);
 
@@ -26,38 +31,63 @@ export default function Home() {
   const [salvando, setSalvando] = useState(false);
   const [resultado, setResultado] = useState<any>(null);
 
+  // Escuta e gerencia a sessão de login ativa do usuário
   useEffect(() => {
-    const tokenSalvo = localStorage.getItem("app_financas_token");
-    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
+    const verificarSessao = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUsuarioAtual(session.user);
+        setAutenticado(true);
+      } else {
+        setAutenticado(false);
+      }
+    };
+    verificarSessao();
 
-    if (tokenSalvo && tokenCorreto && tokenSalvo === tokenCorreto) {
-      setAutenticado(true);
-    } else {
-      setAutenticado(false);
-    }
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUsuarioAtual(session.user);
+        setAutenticado(true);
+      } else {
+        setUsuarioAtual(null);
+        setAutenticado(false);
+      }
+    });
+
+    return () => authListener.subscription.unsubscribe();
   }, []);
 
-  const lidarComAutenticacao = (e: React.FormEvent) => {
+  const lidarComAutenticacao = async (e: React.FormEvent) => {
     e.preventDefault();
-    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
-
-    if (tokenCorreto && senhaInput === tokenCorreto) {
-      localStorage.setItem("app_financas_token", senhaInput);
-      setAutenticado(true);
-    } else {
-      alert("⚠️ Senha incorreta! Acesso negado.");
+    setLoading(true);
+    try {
+      if (modoCadastro) {
+        const { error } = await supabase.auth.signUp({ email: emailInput, password: senhaInput });
+        if (error) throw error;
+        alert("Conta criada com sucesso! Você já pode fazer login.");
+        setModoCadastro(false);
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email: emailInput, password: senhaInput });
+        if (error) throw error;
+      }
+    } catch (error: any) {
+      alert("⚠️ Erro na autenticação: " + error.message);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const fazerLogout = async () => {
+    await supabase.auth.signOut();
   };
 
   const comprimirImagem = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
-      // Impede crash com imagens vazias geradas por celulares com bug de RAM
       if (file.size === 0) {
         return reject(new Error("A câmera retornou uma imagem vazia. Tente afastar um pouco a câmera ou usar uma foto da galeria."));
       }
 
       const img = new Image();
-      // O segredo para não estourar a memória do Poco/Xiaomi:
       const objectUrl = URL.createObjectURL(file);
       img.src = objectUrl;
       
@@ -155,12 +185,15 @@ export default function Home() {
   };
 
   const salvarNoBanco = async () => {
+    if (!usuarioAtual) return alert("Erro: Usuário não identificado para salvar o registro.");
+    
     setSalvando(true);
     try {
       const dataValida = resultado.data_compra && resultado.data_compra !== "Não disponível" 
         ? resultado.data_compra 
         : null;
 
+      // Injeta obrigatoriamente o UID do usuário ativo no user_id da tabela
       const { error } = await supabase
         .from('gastos')
         .insert([
@@ -170,7 +203,8 @@ export default function Home() {
             data_compra: dataValida,
             categoria: resultado.categoria,
             forma_pagamento: resultado.forma_pagamento, 
-            contexto: contexto || "Inserção Manual"
+            contexto: contexto || "Inserção Manual",
+            user_id: usuarioAtual.id 
           }
         ]);
 
@@ -204,6 +238,7 @@ export default function Home() {
     );
   }
 
+  // FORMULÁRIO DE LOGIN / CADASTRO REAL
   if (!autenticado) {
     return (
       <main className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans text-gray-900">
@@ -212,24 +247,19 @@ export default function Home() {
             <Lock className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-800">Sistema Privado</h1>
-            <p className="text-sm text-gray-500 mt-1">Insira a chave de acesso da família para continuar.</p>
+            <h1 className="text-xl font-bold text-gray-800">{modoCadastro ? "Criar Nova Conta" : "Acessar Sistema"}</h1>
+            <p className="text-sm text-gray-500 mt-1">{modoCadastro ? "Registre seu e-mail para começar a organizar suas finanças." : "Insira seu e-mail e senha cadastrados."}</p>
           </div>
           <form onSubmit={lidarComAutenticacao} className="space-y-3">
-            <input
-              type="password"
-              placeholder="Digite a senha de acesso"
-              value={senhaInput}
-              onChange={(e) => setSenhaInput(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm text-center focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white rounded-xl py-3 font-bold text-sm hover:bg-blue-700 active:scale-98 transition-all"
-            >
-              Confirmar Chave
+            <input required type="email" placeholder="E-mail" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+            <input required type="password" placeholder="Senha" value={senhaInput} onChange={(e) => setSenhaInput(e.target.value)} className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+            <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white rounded-xl py-3 font-bold text-sm hover:bg-blue-700 active:scale-98 transition-all flex justify-center items-center gap-2">
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />} {modoCadastro ? "Cadastrar Conta" : "Entrar"}
             </button>
           </form>
+          <button type="button" onClick={() => setModoCadastro(!modoCadastro)} className="text-sm text-blue-600 hover:underline block mx-auto mt-2">
+            {modoCadastro ? "Já possui conta? Faça Login" : "Não possui conta? Cadastre-se"}
+          </button>
         </div>
       </main>
     );
@@ -238,6 +268,17 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 font-sans text-gray-900">
       <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-6 mt-8">
+        
+        {/* Topbar com Botão de Desconectar */}
+        <div className="flex justify-between items-center mb-4">
+          <span className="text-[11px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md truncate max-w-[180px] font-medium" title={usuarioAtual?.email}>
+            👤 {usuarioAtual?.email}
+          </span>
+          <button onClick={fazerLogout} className="text-xs font-semibold uppercase tracking-wider text-red-500 hover:text-red-700 flex items-center gap-1 transition-colors">
+            <LogOut className="w-4 h-4" /> Sair
+          </button>
+        </div>
+
         <h1 className="text-2xl font-bold text-center mb-2 text-blue-600">
           Assistente Financeiro
         </h1>
@@ -310,7 +351,6 @@ export default function Home() {
                 </button>
               </form>
             ) : (
-              
               <form onSubmit={handleSubmitManual} className="space-y-4 animate-in fade-in duration-300">
                 <div>
                   <label className="block text-sm font-medium mb-1">Estabelecimento *</label>
@@ -331,7 +371,7 @@ export default function Home() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Categoria</label>
-                      <select name="categoria" value={formManual.categoria} onChange={lidarComMudancaManual} className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                    <select name="categoria" value={formManual.categoria} onChange={lidarComMudancaManual} className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
                       <option value="Alimentação">Alimentação (Mercados)</option>
                       <option value="Comer Fora">Comer Fora (Restaurantes)</option>
                       <option value="Lazer">Lazer</option>

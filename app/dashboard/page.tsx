@@ -5,55 +5,76 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Bar, Pie, Doughnut, Line } from "react-chartjs-2";
-import { Loader2, ArrowLeft, TrendingUp, Calendar, CreditCard, Lock, ChevronDown, Table as TableIcon, LayoutDashboard, Filter, Trash2, Pencil, X, Save } from "lucide-react";
+import { Loader2, ArrowLeft, TrendingUp, Calendar, CreditCard, Lock, ChevronDown, Table as TableIcon, LayoutDashboard, Filter, Trash2, Pencil, X, Save, LogOut, Wallet } from "lucide-react";
 import Link from "next/link";
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
-  LineElement, // Novo
-  PointElement, // Novo
+  LineElement,
+  PointElement,
   Title,
   Tooltip,
   Legend,
   ArcElement,
 } from "chart.js";
 
-// Precisamos registrar os novos elementos de linha no ChartJS
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
+
+// Lista estática de todas as categorias oficiais do sistema para iteração
+const CATEGORIAS_SISTEMA = ["Alimentação", "Comer Fora", "Lazer", "Saúde", "Transporte", "Casa", "Outros"];
 
 const CORES_CATEGORIAS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316", "#06B6D4", "#6366F1", "#84CC16", "#D946EF"];
 const CORES_PAGAMENTOS = ["#10B981", "#6366F1", "#F59E0B", "#8B5CF6", "#3B82F6", "#9CA3AF", "#F43F5E", "#14B8A6", "#84CC16", "#0EA5E9", "#D946EF", "#F97316"];
 
 export default function Dashboard() {
+  // --- ESTADOS DE AUTENTICAÇÃO ---
   const [autenticado, setAutenticado] = useState<boolean | null>(null);
+  const [usuarioAtual, setUsuarioAtual] = useState<any>(null);
+  const [emailInput, setEmailInput] = useState("");
   const [senhaInput, setSenhaInput] = useState("");
+  const [modoCadastro, setModoCadastro] = useState(false);
 
+  // --- ESTADOS DE DADOS (GASTOS) ---
   const [loading, setLoading] = useState(true);
   const [todosGastos, setTodosGastos] = useState<any[]>([]);
   const [gastosFiltrados, setGastosFiltrados] = useState<any[]>([]);
   const [mesesDisponiveis, setMesesDisponiveis] = useState<string[]>([]);
   const [mesSelecionado, setMesSelecionado] = useState<string>("todos");
   
-  // Controle de Abas e Filtros
-  const [abaAtual, setAbaAtual] = useState<"graficos" | "tabela">("graficos");
-  const [visaoHistorico, setVisaoHistorico] = useState<"diario" | "mensal">("diario"); // Novo estado
+  // --- ESTADOS DE NAVEGAÇÃO/VISUALIZAÇÃO ---
+  // Agora existem 3 abas: graficos, orcamento e tabela
+  const [abaAtual, setAbaAtual] = useState<"graficos" | "orcamento" | "tabela">("graficos");
+  const [visaoHistorico, setVisaoHistorico] = useState<"diario" | "mensal">("diario");
   
+  // --- ESTADOS DE FILTRO DA TABELA ---
   const [filtroTabelaData, setFiltroTabelaData] = useState("");
   const [filtroTabelaCategoria, setFiltroTabelaCategoria] = useState("todas");
   const [filtroTabelaPagamento, setFiltroTabelaPagamento] = useState("todas");
   
-  // Controle de Edição e Exclusão
+  // --- ESTADOS DE MODAL E EDIÇÃO DE GASTOS ---
   const [gastoEditando, setGastoEditando] = useState<any>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
 
+  // --- NOVOS ESTADOS: CONTROLE DE ORÇAMENTO/LIMITES ---
+  // Guardará os limites em formato de Objeto de Chave-Valor Ex: {"Alimentação": 600, "Lazer": 150}
+  const [limites, setLimites] = useState<{ [key: string]: number }>({});
+  // Controla qual categoria o usuário está editando o limite no momento
+  const [categoriaEditandoLimite, setCategoriaEditandoLimite] = useState<string | null>(null);
+  // Captura o valor digitado no input de novo limite
+  const [valorNovoLimite, setValorNovoLimite] = useState("");
+  // Controla o loading exclusivo de salvar o limite
+  const [salvandoLimite, setSalvandoLimite] = useState(false);
+
+  // --- ACUMULADORES MATEMÁTICOS PARA OS GRÁFICOS ---
   const [totalGasto, setTotalGasto] = useState(0);
   const [dadosCategorias, setDadosCategorias] = useState<{ [key: string]: number }>({});
   const [dadosDias, setDadosDias] = useState<{ [key: string]: number }>({});
-  const [dadosMeses, setDadosMeses] = useState<{ [key: string]: number }>({}); // Novo estado para grafico de linha
+  const [dadosMeses, setDadosMeses] = useState<{ [key: string]: number }>({});
   const [dadosPagamentos, setDadosPagamentos] = useState<{ [key: string]: number }>({});
 
+  // 🔄 Função para buscar os gastos armazenados no banco
   async function buscarGastos() {
     try {
       const { data, error } = await supabase.from("gastos").select("*").order("data_compra", { ascending: false });
@@ -71,32 +92,117 @@ export default function Dashboard() {
     }
   }
 
-  useEffect(() => {
-    const tokenSalvo = localStorage.getItem("app_financas_token");
-    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
-
-    if (tokenSalvo && tokenCorreto && tokenSalvo === tokenCorreto) {
-      setAutenticado(true);
-      buscarGastos();
-    } else {
-      setAutenticado(false);
-      setLoading(false);
+  // 🔄 🌟 NOVA FUNÇÃO: Buscar limites definidos na tabela limites_categorias 🌟
+async function buscarLimites() {
+    try {
+      const { data, error } = await supabase.from("limites_categorias").select("categoria, valor_limite");
+      
+      // Se houver erro, apenas avisa no terminal invisível, mas não trava a tela do usuário!
+      if (error) {
+        console.warn("Aviso do Supabase (Tabela de limites pode não estar pronta):", error.message);
+        return; 
+      }
+      
+      if (data) {
+        const mapaLimites = data.reduce((acc: any, item: any) => {
+          acc[item.categoria] = item.valor_limite;
+          return acc;
+        }, {});
+        setLimites(mapaLimites);
+      }
+    } catch (error: any) {
+      console.warn("Erro ao tentar carregar limites:", error.message);
     }
-  }, []);
+  }
 
-  const lidarComAutenticacao = (e: React.FormEvent) => {
+  // 💾 🌟 NOVA FUNÇÃO: Cadastrar ou Atualizar o limite de uma categoria via UPSERT 🌟
+  const salvarLimiteCategoria = async (e: React.FormEvent, categoria: string) => {
     e.preventDefault();
-    const tokenCorreto = process.env.NEXT_PUBLIC_ACESSO_TOKEN;
-    if (tokenCorreto && senhaInput === tokenCorreto) {
-      localStorage.setItem("app_financas_token", senhaInput);
-      setAutenticado(true);
-      setLoading(true);
-      buscarGastos();
-    } else {
-      alert("⚠️ Senha incorreta! Acesso negado.");
+    if (!valorNovoLimite || parseFloat(valorNovoLimite) <= 0) return alert("Insira um valor válido!");
+    
+    setSalvandoLimite(true);
+    try {
+      const valorNumerico = parseFloat(valorNovoLimite);
+      
+      // O método .upsert() tenta atualizar o registro baseado no user_id + categoria (nossa constraint única).
+      // Se já existir, ele atualiza o valor_limite. Se não existir, ele cria uma linha nova!
+      const { error } = await supabase.from("limites_categorias").upsert({
+        user_id: usuarioAtual.id,
+        categoria: categoria,
+        valor_limite: valorNumerico
+      }, { onConflict: "user_id,categoria" }); // Define o critério de conflito
+
+      if (error) throw error;
+
+      // Atualiza o estado local imediatamente na memória para atualizar a tela sem precisar recarregar
+      setLimites(prev => ({ ...prev, [categoria]: valorNumerico }));
+      setCategoriaEditandoLimite(null);
+      setValorNovoLimite("");
+    } catch (error: any) {
+      alert("Erro ao salvar limite: " + error.message);
+    } finally {
+      setSalvandoLimite(false);
     }
   };
 
+  // Verificação de ciclo de vida (Sessão do Usuário) ao carregar o componente
+  useEffect(() => {
+    const verificarSessao = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUsuarioAtual(session.user);
+        setAutenticado(true);
+        buscarGastos();
+        buscarLimites(); // Dispara a busca de limites junto
+      } else {
+        setAutenticado(false);
+        setLoading(false);
+      }
+    };
+    verificarSessao();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUsuarioAtual(session.user);
+        setAutenticado(true);
+        buscarGastos();
+        buscarLimites();
+      } else {
+        setUsuarioAtual(null);
+        setAutenticado(false);
+        setTodosGastos([]);
+        setLimites({});
+      }
+    });
+
+    return () => authListener.subscription.unsubscribe();
+  }, []);
+
+  const lidarComAutenticacao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      if (modoCadastro) {
+        const { error } = await supabase.auth.signUp({ email: emailInput, password: senhaInput });
+        if (error) throw error;
+        alert("Conta criada com sucesso! Você já pode entrar.");
+        setModoCadastro(false);
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email: emailInput, password: senhaInput });
+        if (error) throw error;
+      }
+    } catch (error: any) {
+      alert("⚠️ Erro: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fazerLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  // Algoritmo de processamento matemático de gastos executado toda vez que o mês selecionado muda
   useEffect(() => {
     if (!autenticado) return;
     let filtrados = todosGastos;
@@ -121,17 +227,13 @@ export default function Dashboard() {
       payments[pag] = (payments[pag] || 0) + (item.valor || 0);
 
       if (item.data_compra) {
-        // Agrupamento Diário
         const [ano, mes, dia] = item.data_compra.split("-");
         days[`${dia}/${mes}`] = (days[`${dia}/${mes}`] || 0) + (item.valor || 0);
-        
-        // Agrupamento Mensal (YYYY-MM)
         const anoMes = item.data_compra.substring(0, 7);
         monthsRaw[anoMes] = (monthsRaw[anoMes] || 0) + (item.valor || 0);
       }
     });
 
-    // Ordenar os meses cronologicamente para a linha fazer sentido da esquerda para a direita
     const mesesOrdenados = Object.keys(monthsRaw).sort();
     const monthsProcessed: { [key: string]: number } = {};
     const nomesDosMeses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -156,7 +258,6 @@ export default function Dashboard() {
     try {
       const { error } = await supabase.from("gastos").delete().eq("id", id);
       if (error) throw error;
-      
       const novaLista = todosGastos.filter(g => g.id !== id);
       setTodosGastos(novaLista);
     } catch (error: any) {
@@ -169,7 +270,6 @@ export default function Dashboard() {
     setLoadingEdit(true);
     try {
       const valorNumerico = parseFloat(gastoEditando.valor);
-      
       const { error } = await supabase.from("gastos").update({
         estabelecimento: gastoEditando.estabelecimento,
         valor: valorNumerico,
@@ -179,7 +279,6 @@ export default function Dashboard() {
       }).eq("id", gastoEditando.id);
       
       if (error) throw error;
-      
       const novaLista = todosGastos.map(g => 
         g.id === gastoEditando.id ? { ...g, ...gastoEditando, valor: valorNumerico } : g
       );
@@ -192,13 +291,13 @@ export default function Dashboard() {
     }
   };
 
+  // Função para formatar o seletor de meses
   const formatarMesAno = (mesAno: string) => {
     const [ano, mes] = mesAno.split("-");
     const mesesNome = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     return `${mesesNome[parseInt(mes) - 1]} / ${ano}`;
   };
 
-  // Objetos de Configuração do Chart.js
   const dataPizza = {
     labels: Object.keys(dadosCategorias),
     datasets: [{ data: Object.values(dadosCategorias), backgroundColor: Object.keys(dadosCategorias).map((_, i) => CORES_CATEGORIAS[i % CORES_CATEGORIAS.length]), borderWidth: 1 }],
@@ -219,10 +318,10 @@ export default function Dashboard() {
     datasets: [{
       label: "Gastos no Mês (R$)",
       data: Object.values(dadosMeses),
-      borderColor: "#8B5CF6", // Roxo moderno
+      borderColor: "#8B5CF6",
       backgroundColor: "#8B5CF680",
       borderWidth: 2,
-      tension: 0.4, // Curvatura suave da linha
+      tension: 0.4,
       pointBackgroundColor: "#8B5CF6",
       fill: true,
     }],
@@ -237,11 +336,13 @@ export default function Dashboard() {
       <main className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans text-gray-900">
         <div className="max-w-sm w-full bg-white rounded-2xl shadow-md p-6 border text-center space-y-4">
           <div className="mx-auto w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center"><Lock className="w-6 h-6" /></div>
-          <div><h1 className="text-xl font-bold text-gray-800">Sistema Privado</h1><p className="text-sm text-gray-500 mt-1">Insira a chave de acesso da família.</p></div>
+          <div><h1 className="text-xl font-bold text-gray-800">{modoCadastro ? "Criar Nova Conta" : "Acessar Conta"}</h1><p className="text-sm text-gray-500 mt-1">Organize as finanças pessoais.</p></div>
           <form onSubmit={lidarComAutenticacao} className="space-y-3">
-            <input type="password" placeholder="Digite a senha" value={senhaInput} onChange={(e) => setSenhaInput(e.target.value)} className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm text-center focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-            <button type="submit" className="w-full bg-blue-600 text-white rounded-xl py-3 font-bold text-sm hover:bg-blue-700 active:scale-98 transition-all">Confirmar Chave</button>
+            <input required type="email" placeholder="E-mail" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+            <input required type="password" placeholder="Senha" value={senhaInput} onChange={(e) => setSenhaInput(e.target.value)} className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+            <button type="submit" className="w-full bg-blue-600 text-white rounded-xl py-3 font-bold text-sm hover:bg-blue-700 active:scale-98 transition-all">{modoCadastro ? "Cadastrar" : "Entrar"}</button>
           </form>
+          <button type="button" onClick={() => setModoCadastro(!modoCadastro)} className="text-sm text-blue-600 hover:underline">{modoCadastro ? "Já tem conta? Login" : "Não tem conta? Cadastre-se"}</button>
         </div>
       </main>
     );
@@ -258,11 +359,16 @@ export default function Dashboard() {
     <main className="min-h-screen bg-gray-50 px-4 py-6 font-sans text-gray-900 antialiased relative">
       <div className="max-w-md mx-auto space-y-5">
         
-        <Link href="/" className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-blue-600 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Voltar ao Scanner
-        </Link>
+        <div className="flex justify-between items-center">
+          <Link href="/" className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-blue-600 transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Voltar ao Scanner
+          </Link>
+          <button onClick={fazerLogout} className="text-xs font-semibold uppercase tracking-wider text-red-500 hover:text-red-700 flex items-center gap-1 transition-colors">
+            <LogOut className="w-4 h-4" /> Sair
+          </button>
+        </div>
 
-        {/* Seletor Global de Período */}
+        {/* Período Global */}
         <div className="bg-white rounded-2xl border border-gray-200/80 p-4 shadow-sm flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-gray-500"><Calendar className="w-5 h-5 text-blue-500" /><span className="text-sm font-medium">Período:</span></div>
           <select value={mesSelecionado} onChange={(e) => setMesSelecionado(e.target.value)} className="flex-1 bg-gray-50 border border-gray-300 rounded-xl p-2.5 text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer">
@@ -271,7 +377,6 @@ export default function Dashboard() {
           </select>
         </div>
 
-        {/* Card de Valor Total */}
         <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-2xl p-5 shadow-md flex items-center justify-between">
           <div>
             <p className="text-blue-100 text-xs font-semibold uppercase tracking-wider">Total no período</p>
@@ -280,20 +385,22 @@ export default function Dashboard() {
           <div className="bg-white/15 p-3 rounded-xl backdrop-blur-md"><TrendingUp className="w-6 h-6 text-white" /></div>
         </div>
 
-        {/* Controle de Abas */}
-        <div className="flex bg-gray-200/50 p-1.5 rounded-xl border border-gray-200/80">
-          <button onClick={() => setAbaAtual("graficos")} className={`flex-1 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${abaAtual === 'graficos' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
+        {/* Menu de Abas com a Nova Aba "Orçamento" */}
+        <div className="flex bg-gray-200/50 p-1.5 rounded-xl border border-gray-200/80 gap-1">
+          <button onClick={() => setAbaAtual("graficos")} className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${abaAtual === 'graficos' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
             <LayoutDashboard className="w-4 h-4" /> Gráficos
           </button>
-          <button onClick={() => setAbaAtual("tabela")} className={`flex-1 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${abaAtual === 'tabela' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
+          <button onClick={() => setAbaAtual("orcamento")} className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${abaAtual === 'orcamento' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
+            <Wallet className="w-4 h-4" /> Orçamento
+          </button>
+          <button onClick={() => setAbaAtual("tabela")} className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${abaAtual === 'tabela' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
             <TableIcon className="w-4 h-4" /> Histórico
           </button>
         </div>
 
-        {/* CONTEÚDO DA ABA */}
-        {abaAtual === "graficos" ? (
+        {/* RENDERING CONDICIONAL DAS ABAS */}
+        {abaAtual === "graficos" && (
           <div className="space-y-5 animate-in fade-in duration-300">
-            {/* Card 1: Gráfico de Pizza (Categorias) */}
             <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-200/80">
               <h3 className="text-base font-bold text-gray-800 mb-4">Divisão por Categorias</h3>
               {Object.keys(dadosCategorias).length > 0 ? (
@@ -320,7 +427,6 @@ export default function Dashboard() {
               ) : (<p className="text-gray-400 text-xs text-center py-12">Sem gastos neste período.</p>)}
             </div>
 
-            {/* Card 2: Gráfico de Formas de Pagamento */}
             <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-200/80">
               <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2"><CreditCard className="w-5 h-5 text-green-500" /> Formas de Pagamento</h3>
               {Object.keys(dadosPagamentos).length > 0 ? (
@@ -347,45 +453,113 @@ export default function Dashboard() {
               ) : (<p className="text-gray-400 text-xs text-center py-12">Sem dados de pagamento.</p>)}
             </div>
             
-            {/* NOVO: Card 3 - Histórico com Filtro Diário/Mensal */}
             <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-200/80">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-base font-bold text-gray-800">Histórico de Gastos</h3>
-                {/* Switcher Diário/Mensal */}
                 <div className="flex bg-gray-100 rounded-lg p-1 border border-gray-200">
-                  <button
-                    onClick={() => setVisaoHistorico("diario")}
-                    className={`px-3 py-1 text-[11px] font-bold rounded-md transition-colors ${visaoHistorico === "diario" ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-                  >
-                    Diário
-                  </button>
-                  <button
-                    onClick={() => setVisaoHistorico("mensal")}
-                    className={`px-3 py-1 text-[11px] font-bold rounded-md transition-colors ${visaoHistorico === "mensal" ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-                  >
-                    Mensal
-                  </button>
+                  <button onClick={() => setVisaoHistorico("diario")} className={`px-3 py-1 text-[11px] font-bold rounded-md transition-colors ${visaoHistorico === "diario" ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700"}`}>Diário</button>
+                  <button onClick={() => setVisaoHistorico("mensal")} className={`px-3 py-1 text-[11px] font-bold rounded-md transition-colors ${visaoHistorico === "mensal" ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700"}`}>Mensal</button>
                 </div>
               </div>
 
               {visaoHistorico === "diario" ? (
                 Object.keys(dadosDias).length > 0 ? (
-                  <div className="w-full h-52 animate-in fade-in zoom-in-95 duration-300">
-                    <Bar data={dataBarras} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#f3f4f6' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} />
-                  </div>
+                  <div className="w-full h-52 animate-in fade-in zoom-in-95 duration-300"><Bar data={dataBarras} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#f3f4f6' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} /></div>
                 ) : (<p className="text-gray-400 text-xs text-center py-12">Sem histórico neste período.</p>)
               ) : (
                 Object.keys(dadosMeses).length > 0 ? (
-                  <div className="w-full h-52 animate-in fade-in zoom-in-95 duration-300">
-                    <Line data={dataLinha} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#f3f4f6' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} />
-                  </div>
+                  <div className="w-full h-52 animate-in fade-in zoom-in-95 duration-300"><Line data={dataLinha} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#f3f4f6' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} /></div>
                 ) : (<p className="text-gray-400 text-xs text-center py-12">Sem histórico mensal.</p>)
               )}
             </div>
           </div>
-        ) : (
+        )}
+
+        {/* 🌟 NOVA ABA: GERENCIADOR DE ORÇAMENTOS E LIMITES MENSAL 🌟 */}
+        {abaAtual === "orcamento" && (
+          <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-200/80 space-y-5 animate-in fade-in duration-300">
+            <div>
+              <h3 className="text-base font-bold text-gray-800">Limites de Gasto Mensal</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Defina quanto deseja gastar em cada categoria no mês.</p>
+            </div>
+
+            <div className="space-y-4">
+              {CATEGORIAS_SISTEMA.map((cat) => {
+                // Realiza a leitura matemática: quanto o usuário já consumiu nessa categoria no mês selecionado
+                const jaGasto = dadosCategorias[cat] || 0;
+                // Lê se existe um teto limite configurado para ela no mapa
+                const limiteDefinido = limites[cat] || null;
+                
+                // Calcula a porcentagem do uso do dinheiro
+                const porcentagemUso = limiteDefinido ? (jaGasto / limiteDefinido) * 100 : 0;
+
+                // Lógica de Engenharia Visual: Define a cor da barra baseado no perigo do estouro
+                let corDaBarra = "bg-green-500";
+                if (porcentagemUso >= 70 && porcentagemUso < 90) corDaBarra = "bg-amber-500";
+                if (porcentagemUso >= 90) corDaBarra = "bg-red-500";
+
+                return (
+                  <div key={cat} className="p-3 bg-gray-50 rounded-xl border border-gray-200/60 space-y-2">
+                    <div className="flex justify-between items-center text-sm font-medium">
+                      <span className="text-gray-800">{cat}</span>
+                      
+                      {/* Se o usuário clicou para editar o limite dessa categoria, renderiza o formulário inline */}
+                      {categoriaEditandoLimite === cat ? (
+                        <form onSubmit={(e) => salvarLimiteCategoria(e, cat)} className="flex items-center gap-1.5 animate-in slide-in-from-right duration-200">
+                          <input
+                            required
+                            type="number"
+                            placeholder="R$"
+                            value={valorNovoLimite}
+                            onChange={(e) => setValorNovoLimite(e.target.value)}
+                            className="w-20 bg-white border border-gray-300 rounded-md px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                          <button type="submit" disabled={salvandoLimite} className="bg-blue-600 text-white p-1 rounded-md hover:bg-blue-700">
+                            {salvandoLimite ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                          </button>
+                          <button type="button" onClick={() => setCategoriaEditandoLimite(null)} className="bg-gray-200 text-gray-600 p-1 rounded-md hover:bg-gray-300">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </form>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-xs">
+                          {limiteDefinido ? (
+                            <>
+                              <span className="text-gray-900 font-bold">Limite: R$ {limiteDefinido.toFixed(0)}</span>
+                              <button onClick={() => { setCategoriaEditandoLimite(cat); setValorNovoLimite(limiteDefinido.toString()); }} className="text-gray-400 hover:text-blue-500">
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                            </>
+                          ) : (
+                            <button onClick={() => setCategoriaEditandoLimite(cat)} className="text-blue-600 font-semibold hover:underline">
+                              + Definir Teto
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Exibe o status da barra de progresso caso o limite exista */}
+                    {limiteDefinido && (
+                      <div className="space-y-1">
+                        <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                          <div className={`h-2.5 rounded-full ${corDaBarra} transition-all duration-500`} style={{ width: `${Math.min(porcentagemUso, 100)}%` }}></div>
+                        </div>
+                        <div className="flex justify-between text-[11px] font-medium text-gray-500">
+                          <span>Gasto: R$ {jaGasto.toFixed(2)}</span>
+                          <span className={porcentagemUso >= 100 ? "text-red-600 font-bold" : ""}>{porcentagemUso.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {abaAtual === "tabela" && (
           <div className="space-y-4 animate-in fade-in duration-300">
-            {/* Filtros da Tabela com Valores Estáticos */}
             <div className="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-sm space-y-3">
               <h3 className="text-sm font-bold flex items-center gap-2 text-gray-800"><Filter className="w-4 h-4 text-blue-500" /> Filtros da Tabela</h3>
               <div className="grid grid-cols-1 gap-3">
@@ -414,7 +588,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Tabela Responsiva */}
             <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden mb-8">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left text-gray-600">
@@ -446,7 +619,7 @@ export default function Dashboard() {
                         </tr>
                       ))
                     ) : (
-                      <tr><td colSpan={4} className="px-4 py-12 text-center text-gray-400">Nenhum gasto encontrado para os filtros selecionados.</td></tr>
+                      <tr><td colSpan={4} className="px-4 py-12 text-center text-gray-400">Nenhum gasto encontrado.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -456,20 +629,17 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Modal de Edição */}
       {gastoEditando && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50">
               <h3 className="font-bold text-lg text-gray-800">Editar Gasto</h3>
-              <button onClick={() => setGastoEditando(null)} className="text-gray-400 hover:text-gray-600 bg-gray-200 hover:bg-gray-300 p-1.5 rounded-full transition-colors">
-                <X className="w-5 h-5" />
-              </button>
+              <button onClick={() => setGastoEditando(null)} className="text-gray-400 hover:text-gray-600 bg-gray-200 hover:bg-gray-300 p-1.5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={salvarEdicao} className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1 text-gray-700">Estabelecimento</label>
-                <input required value={gastoEditando.estabelecimento} onChange={e => setGastoEditando({...gastoEditando, estabelecimento: e.target.value})} type="text" className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                <input required value={gastoEditando.estabelecimento} onChange={e => setGastoEditando({...gastoEditando, establishment: e.target.value})} type="text" className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

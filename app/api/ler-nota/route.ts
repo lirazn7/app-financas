@@ -1,15 +1,31 @@
 import { NextResponse } from "next/server";
-import Groq from "groq-sdk";
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: Request) {
   try {
+    // 1. Recebe os dados enviados pelo Front-end (a foto da nota e o texto opcional)
     const { imagemBase64, contexto } = await req.json();
 
-    const chatCompletion = await groq.chat.completions.create({
-      messages: [
-        {
+    // 2. Trava de segurança: Se a câmera falhou e não mandou imagem, barramos aqui.
+    if (!imagemBase64) {
+      return NextResponse.json({ error: "Nenhuma imagem foi enviada pelo aplicativo." }, { status: 400 });
+    }
+
+    // 3. Chamada nativa para o OpenRouter (O "Correio" que leva a foto até o Qwen)
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        // Aqui definimos o cérebro que vai processar a imagem: Qwen 2.5 Vision
+        model: "qwen/qwen-2.5-vl-72b-instruct", 
+        
+        // Força a IA a devolver estritamente um objeto JSON válido, evitando textos inúteis
+        response_format: { type: "json_object" }, 
+        
+        messages: [
+          {
           role: "system",
           content: `Você é um assistente financeiro especializado em ler notas fiscais e extrair dados em formato JSON.
           
@@ -42,22 +58,40 @@ export async function POST(req: Request) {
             "forma_pagamento": "Vale Refeição"
           }`
         },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: `Contexto do usuário: ${contexto || 'Nenhum contexto fornecido.'}` },
-            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imagemBase64}` } }
-          ]
-        }
-      ],
-      model: "meta-llama/llama-4-scout-17b-16e-instruct",
-      temperature: 0.8,
-      response_format: { type: "json_object" }
+          {
+            role: "user",
+            content: [
+              { type: "text", text: `Extraia os dados desta nota fiscal. Contexto adicional passado pelo usuário: ${contexto || 'Nenhum'}` },
+              // Envia a imagem em formato base64 que foi comprimida lá no front-end
+              { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imagemBase64}` } }
+            ]
+          }
+        ]
+      })
     });
 
-    const resposta = chatCompletion.choices[0]?.message?.content || "{}";
-    return NextResponse.json(JSON.parse(resposta));
+    const data = await response.json();
+
+    // 4. Tratativa de erro da API: Se o OpenRouter cair ou a chave for inválida
+    if (!response.ok) {
+      throw new Error(data.error?.message || "Falha na comunicação com o servidor de IA.");
+    }
+
+    // 5. Extração da Resposta
+    const conteudoIA = data.choices[0].message.content;
+    
+    // 6. Limpeza (Sanitização): Às vezes a IA devolve o JSON dentro de blocos de markdown (```json ... ```). 
+    // Nós removemos isso para o comando JSON.parse não quebrar.
+    const jsonLimpo = conteudoIA.replace(/```json/gi, "").replace(/```/g, "").trim();
+    
+    // 7. Converte o texto purificado em um Objeto JavaScript real
+    const resultadoJSON = JSON.parse(jsonLimpo);
+
+    // 8. Devolve o objeto perfeitamente formatado para o Front-end mostrar na tela
+    return NextResponse.json(resultadoJSON);
+
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    console.error("Erro na leitura da nota (OpenRouter):", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

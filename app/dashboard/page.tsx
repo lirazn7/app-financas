@@ -5,8 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Bar, Pie, Doughnut, Line } from "react-chartjs-2";
-import { Loader2, ArrowLeft, TrendingUp, Calendar, CreditCard, Lock, ChevronDown, Table as TableIcon, LayoutDashboard, Filter, Trash2, Pencil, X, Save, LogOut, Wallet } from "lucide-react";
-import Link from "next/link";
+import { Loader2, TrendingUp, Calendar, CreditCard, ChevronDown, Table as TableIcon, LayoutDashboard, Filter, Trash2, Pencil, X, Save, Wallet } from "lucide-react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -19,14 +18,11 @@ import {
   Legend,
   ArcElement,
 } from "chart.js";
+import { CATEGORIAS, ROTULOS_CATEGORIAS, FORMAS_PAGAMENTO, CORES_CATEGORIAS, CORES_PAGAMENTOS } from "../../lib/constantes";
+import AppHeader from "../../components/AppHeader";
+import AuthCard from "../../components/AuthCard";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
-
-// Lista estática de todas as categorias oficiais do sistema para iteração
-const CATEGORIAS_SISTEMA = ["Alimentação", "Comer Fora", "Lazer", "Saúde", "Transporte", "Casa", "Outros"];
-
-const CORES_CATEGORIAS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316", "#06B6D4", "#6366F1", "#84CC16", "#D946EF"];
-const CORES_PAGAMENTOS = ["#10B981", "#6366F1", "#F59E0B", "#8B5CF6", "#3B82F6", "#9CA3AF", "#F43F5E", "#14B8A6", "#84CC16", "#0EA5E9", "#D946EF", "#F97316"];
 
 export default function Dashboard() {
   // --- ESTADOS DE AUTENTICAÇÃO ---
@@ -42,29 +38,24 @@ export default function Dashboard() {
   const [gastosFiltrados, setGastosFiltrados] = useState<any[]>([]);
   const [mesesDisponiveis, setMesesDisponiveis] = useState<string[]>([]);
   const [mesSelecionado, setMesSelecionado] = useState<string>("todos");
-  
+
   // --- ESTADOS DE NAVEGAÇÃO/VISUALIZAÇÃO ---
-  // Agora existem 3 abas: graficos, orcamento e tabela
   const [abaAtual, setAbaAtual] = useState<"graficos" | "orcamento" | "tabela">("graficos");
   const [visaoHistorico, setVisaoHistorico] = useState<"diario" | "mensal">("diario");
-  
+
   // --- ESTADOS DE FILTRO DA TABELA ---
   const [filtroTabelaData, setFiltroTabelaData] = useState("");
   const [filtroTabelaCategoria, setFiltroTabelaCategoria] = useState("todas");
   const [filtroTabelaPagamento, setFiltroTabelaPagamento] = useState("todas");
-  
+
   // --- ESTADOS DE MODAL E EDIÇÃO DE GASTOS ---
   const [gastoEditando, setGastoEditando] = useState<any>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
 
-  // --- NOVOS ESTADOS: CONTROLE DE ORÇAMENTO/LIMITES ---
-  // Guardará os limites em formato de Objeto de Chave-Valor Ex: {"Alimentação": 600, "Lazer": 150}
+  // --- CONTROLE DE ORÇAMENTO/LIMITES ---
   const [limites, setLimites] = useState<{ [key: string]: number }>({});
-  // Controla qual categoria o usuário está editando o limite no momento
   const [categoriaEditandoLimite, setCategoriaEditandoLimite] = useState<string | null>(null);
-  // Captura o valor digitado no input de novo limite
   const [valorNovoLimite, setValorNovoLimite] = useState("");
-  // Controla o loading exclusivo de salvar o limite
   const [salvandoLimite, setSalvandoLimite] = useState(false);
 
   // --- ACUMULADORES MATEMÁTICOS PARA OS GRÁFICOS ---
@@ -92,17 +83,16 @@ export default function Dashboard() {
     }
   }
 
-  // 🔄 🌟 NOVA FUNÇÃO: Buscar limites definidos na tabela limites_categorias 🌟
-async function buscarLimites() {
+  // 🔄 Buscar limites definidos na tabela limites_categorias
+  async function buscarLimites() {
     try {
       const { data, error } = await supabase.from("limites_categorias").select("categoria, valor_limite");
-      
-      // Se houver erro, apenas avisa no terminal invisível, mas não trava a tela do usuário!
+
       if (error) {
         console.warn("Aviso do Supabase (Tabela de limites pode não estar pronta):", error.message);
-        return; 
+        return;
       }
-      
+
       if (data) {
         const mapaLimites = data.reduce((acc: any, item: any) => {
           acc[item.categoria] = item.valor_limite;
@@ -115,26 +105,23 @@ async function buscarLimites() {
     }
   }
 
-  // 💾 🌟 NOVA FUNÇÃO: Cadastrar ou Atualizar o limite de uma categoria via UPSERT 🌟
+  // 💾 Cadastrar ou Atualizar o limite de uma categoria via UPSERT
   const salvarLimiteCategoria = async (e: React.FormEvent, categoria: string) => {
     e.preventDefault();
     if (!valorNovoLimite || parseFloat(valorNovoLimite) <= 0) return alert("Insira um valor válido!");
-    
+
     setSalvandoLimite(true);
     try {
       const valorNumerico = parseFloat(valorNovoLimite);
-      
-      // O método .upsert() tenta atualizar o registro baseado no user_id + categoria (nossa constraint única).
-      // Se já existir, ele atualiza o valor_limite. Se não existir, ele cria uma linha nova!
+
       const { error } = await supabase.from("limites_categorias").upsert({
         user_id: usuarioAtual.id,
         categoria: categoria,
         valor_limite: valorNumerico
-      }, { onConflict: "user_id,categoria" }); // Define o critério de conflito
+      }, { onConflict: "user_id,categoria" });
 
       if (error) throw error;
 
-      // Atualiza o estado local imediatamente na memória para atualizar a tela sem precisar recarregar
       setLimites(prev => ({ ...prev, [categoria]: valorNumerico }));
       setCategoriaEditandoLimite(null);
       setValorNovoLimite("");
@@ -153,7 +140,7 @@ async function buscarLimites() {
         setUsuarioAtual(session.user);
         setAutenticado(true);
         buscarGastos();
-        buscarLimites(); // Dispara a busca de limites junto
+        buscarLimites();
       } else {
         setAutenticado(false);
         setLoading(false);
@@ -277,9 +264,9 @@ async function buscarLimites() {
         categoria: gastoEditando.categoria,
         forma_pagamento: gastoEditando.forma_pagamento
       }).eq("id", gastoEditando.id);
-      
+
       if (error) throw error;
-      const novaLista = todosGastos.map(g => 
+      const novaLista = todosGastos.map(g =>
         g.id === gastoEditando.id ? { ...g, ...gastoEditando, valor: valorNumerico } : g
       );
       setTodosGastos(novaLista);
@@ -310,7 +297,7 @@ async function buscarLimites() {
 
   const dataBarras = {
     labels: Object.keys(dadosDias),
-    datasets: [{ label: "Gastos no Dia (R$)", data: Object.values(dadosDias), backgroundColor: "#3B82F6", borderRadius: 6 }],
+    datasets: [{ label: "Gastos no Dia (R$)", data: Object.values(dadosDias), backgroundColor: "#059669", borderRadius: 6 }],
   };
 
   const dataLinha = {
@@ -318,33 +305,33 @@ async function buscarLimites() {
     datasets: [{
       label: "Gastos no Mês (R$)",
       data: Object.values(dadosMeses),
-      borderColor: "#8B5CF6",
-      backgroundColor: "#8B5CF680",
+      borderColor: "#047857",
+      backgroundColor: "#04785740",
       borderWidth: 2,
       tension: 0.4,
-      pointBackgroundColor: "#8B5CF6",
+      pointBackgroundColor: "#047857",
       fill: true,
     }],
   };
 
+  const inputFiltro = "w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25";
+
   if (autenticado === null || loading) {
-    return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
+    return <div className="flex min-h-screen items-center justify-center bg-canvas"><Loader2 className="h-8 w-8 animate-spin text-brand-600" /></div>;
   }
 
   if (!autenticado) {
     return (
-      <main className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans text-gray-900">
-        <div className="max-w-sm w-full bg-white rounded-2xl shadow-md p-6 border text-center space-y-4">
-          <div className="mx-auto w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center"><Lock className="w-6 h-6" /></div>
-          <div><h1 className="text-xl font-bold text-gray-800">{modoCadastro ? "Criar Nova Conta" : "Acessar Conta"}</h1><p className="text-sm text-gray-500 mt-1">Organize as finanças pessoais.</p></div>
-          <form onSubmit={lidarComAutenticacao} className="space-y-3">
-            <input required type="email" placeholder="E-mail" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-            <input required type="password" placeholder="Senha" value={senhaInput} onChange={(e) => setSenhaInput(e.target.value)} className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-            <button type="submit" className="w-full bg-blue-600 text-white rounded-xl py-3 font-bold text-sm hover:bg-blue-700 active:scale-98 transition-all">{modoCadastro ? "Cadastrar" : "Entrar"}</button>
-          </form>
-          <button type="button" onClick={() => setModoCadastro(!modoCadastro)} className="text-sm text-blue-600 hover:underline">{modoCadastro ? "Já tem conta? Login" : "Não tem conta? Cadastre-se"}</button>
-        </div>
-      </main>
+      <AuthCard
+        modoCadastro={modoCadastro}
+        setModoCadastro={setModoCadastro}
+        email={emailInput}
+        setEmail={setEmailInput}
+        senha={senhaInput}
+        setSenha={setSenhaInput}
+        loading={false}
+        onSubmit={lidarComAutenticacao}
+      />
     );
   }
 
@@ -356,182 +343,191 @@ async function buscarLimites() {
   });
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-6 font-sans text-gray-900 antialiased relative">
-      <div className="max-w-md mx-auto space-y-5">
-        
-        <div className="flex justify-between items-center">
-          <Link href="/" className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-blue-600 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Voltar ao Scanner
-          </Link>
-          <button onClick={fazerLogout} className="text-xs font-semibold uppercase tracking-wider text-red-500 hover:text-red-700 flex items-center gap-1 transition-colors">
-            <LogOut className="w-4 h-4" /> Sair
-          </button>
-        </div>
+    <div className="min-h-screen bg-canvas">
+      <AppHeader email={usuarioAtual?.email} paginaAtiva="dashboard" onLogout={fazerLogout} />
 
-        {/* Período Global */}
-        <div className="bg-white rounded-2xl border border-gray-200/80 p-4 shadow-sm flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-gray-500"><Calendar className="w-5 h-5 text-blue-500" /><span className="text-sm font-medium">Período:</span></div>
-          <select value={mesSelecionado} onChange={(e) => setMesSelecionado(e.target.value)} className="flex-1 bg-gray-50 border border-gray-300 rounded-xl p-2.5 text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer">
-            <option value="todos">Todos os meses</option>
-            {mesesDisponiveis.map((mes) => <option key={mes} value={mes}>{formatarMesAno(mes)}</option>)}
-          </select>
-        </div>
-
-        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-2xl p-5 shadow-md flex items-center justify-between">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-10">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-blue-100 text-xs font-semibold uppercase tracking-wider">Total no período</p>
-            <h2 className="text-3xl font-extrabold mt-1 tracking-tight">R$ {totalGasto.toFixed(2)}</h2>
+            <h1 className="text-xl font-bold tracking-tight text-ink lg:text-3xl">Painel Financeiro</h1>
+            <p className="mt-1 text-sm text-ink-muted">Acompanhe seus gastos, orçamentos e histórico.</p>
           </div>
-          <div className="bg-white/15 p-3 rounded-xl backdrop-blur-md"><TrendingUp className="w-6 h-6 text-white" /></div>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 shrink-0 text-brand-600" />
+            <select value={mesSelecionado} onChange={(e) => setMesSelecionado(e.target.value)} className="w-full cursor-pointer rounded-xl border border-edge bg-surface px-3 py-2.5 text-sm font-medium text-ink shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 sm:w-52">
+              <option value="todos">Todos os meses</option>
+              {mesesDisponiveis.map((mes) => <option key={mes} value={mes}>{formatarMesAno(mes)}</option>)}
+            </select>
+          </div>
         </div>
 
-        {/* Menu de Abas com a Nova Aba "Orçamento" */}
-        <div className="flex bg-gray-200/50 p-1.5 rounded-xl border border-gray-200/80 gap-1">
-          <button onClick={() => setAbaAtual("graficos")} className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${abaAtual === 'graficos' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
-            <LayoutDashboard className="w-4 h-4" /> Gráficos
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-brand-700 to-brand-900 p-5 text-white shadow-md sm:col-span-2 lg:col-span-1">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-brand-200">Total no período</p>
+              <h2 className="mt-1 text-3xl font-extrabold tracking-tight">R$ {totalGasto.toFixed(2)}</h2>
+            </div>
+            <div className="rounded-xl bg-white/15 p-3"><TrendingUp className="h-6 w-6" /></div>
+          </div>
+          <div className="hidden items-center justify-between rounded-2xl border border-edge bg-surface p-5 shadow-sm sm:flex">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-faint">Registros</p>
+              <h2 className="mt-1 text-3xl font-extrabold tracking-tight text-ink">{gastosFiltrados.length}</h2>
+            </div>
+            <div className="rounded-xl bg-canvas p-3 text-ink-muted"><TableIcon className="h-6 w-6" /></div>
+          </div>
+          <div className="hidden items-center justify-between rounded-2xl border border-edge bg-surface p-5 shadow-sm sm:flex">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-faint">Maior categoria</p>
+              <h2 className="mt-1 truncate text-2xl font-extrabold tracking-tight text-ink">
+                {Object.keys(dadosCategorias)[0] || "—"}
+              </h2>
+            </div>
+            <div className="rounded-xl bg-canvas p-3 text-ink-muted"><Wallet className="h-6 w-6" /></div>
+          </div>
+        </div>
+
+        {/* Menu de Abas */}
+        <div className="mb-6 flex gap-1 rounded-xl border border-edge bg-surface p-1.5 shadow-sm sm:max-w-md">
+          <button onClick={() => setAbaAtual("graficos")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'graficos' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}>
+            <LayoutDashboard className="h-4 w-4" /> Gráficos
           </button>
-          <button onClick={() => setAbaAtual("orcamento")} className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${abaAtual === 'orcamento' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
-            <Wallet className="w-4 h-4" /> Orçamento
+          <button onClick={() => setAbaAtual("orcamento")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'orcamento' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}>
+            <Wallet className="h-4 w-4" /> Orçamento
           </button>
-          <button onClick={() => setAbaAtual("tabela")} className={`flex-1 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${abaAtual === 'tabela' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
-            <TableIcon className="w-4 h-4" /> Histórico
+          <button onClick={() => setAbaAtual("tabela")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'tabela' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}>
+            <TableIcon className="h-4 w-4" /> Histórico
           </button>
         </div>
 
-        {/* RENDERING CONDICIONAL DAS ABAS */}
+        {/* ABA GRÁFICOS */}
         {abaAtual === "graficos" && (
-          <div className="space-y-5 animate-in fade-in duration-300">
-            <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-200/80">
-              <h3 className="text-base font-bold text-gray-800 mb-4">Divisão por Categorias</h3>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm">
+              <h3 className="mb-4 text-base font-bold text-ink">Divisão por Categorias</h3>
               {Object.keys(dadosCategorias).length > 0 ? (
                 <>
-                  <div className="w-full h-48 flex justify-center items-center"><Pie data={dataPizza} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }} /></div>
-                  <details className="mt-5 group bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
-                    <summary className="cursor-pointer p-3.5 font-semibold text-sm text-gray-700 flex justify-between items-center list-none [&::-webkit-details-marker]:hidden bg-gray-50 hover:bg-gray-100 transition-colors">
-                      Ver detalhamento e % <ChevronDown className="w-4 h-4 transition-transform duration-300 group-open:rotate-180 text-gray-500" />
+                  <div className="flex h-48 w-full items-center justify-center lg:h-56"><Pie data={dataPizza} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }} /></div>
+                  <details className="group mt-5 overflow-hidden rounded-xl border border-edge bg-canvas">
+                    <summary className="flex cursor-pointer list-none items-center justify-between p-3.5 text-sm font-semibold text-ink transition-colors hover:bg-edge/40 [&::-webkit-details-marker]:hidden">
+                      Ver detalhamento e % <ChevronDown className="h-4 w-4 text-ink-faint transition-transform duration-300 group-open:rotate-180" />
                     </summary>
-                    <div className="p-4 border-t border-gray-200 space-y-3.5 bg-white">
+                    <div className="space-y-3.5 border-t border-edge bg-surface p-4">
                       {Object.entries(dadosCategorias).map(([nome, valor], index) => {
                         const cor = CORES_CATEGORIAS[index % CORES_CATEGORIAS.length];
                         const porcentagem = totalGasto > 0 ? ((valor / totalGasto) * 100).toFixed(1) : "0.0";
                         return (
                           <div key={nome} className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2.5"><span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cor }}></span><span className="text-gray-700 font-medium truncate max-w-[120px]">{nome}</span></div>
-                            <div className="flex items-center gap-3"><span className="text-gray-900 font-semibold">R$ {valor.toFixed(2)}</span><span className="text-gray-500 text-xs bg-gray-100 px-1.5 py-0.5 rounded min-w-[3.5rem] text-center font-medium">{porcentagem}%</span></div>
+                            <div className="flex items-center gap-2.5"><span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: cor }}></span><span className="max-w-[140px] truncate font-medium text-ink">{nome}</span></div>
+                            <div className="flex items-center gap-3"><span className="font-semibold text-ink">R$ {valor.toFixed(2)}</span><span className="min-w-[3.5rem] rounded bg-canvas px-1.5 py-0.5 text-center text-xs font-medium text-ink-muted">{porcentagem}%</span></div>
                           </div>
                         );
                       })}
                     </div>
                   </details>
                 </>
-              ) : (<p className="text-gray-400 text-xs text-center py-12">Sem gastos neste período.</p>)}
+              ) : (<p className="py-12 text-center text-xs text-ink-faint">Sem gastos neste período.</p>)}
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-200/80">
-              <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2"><CreditCard className="w-5 h-5 text-green-500" /> Formas de Pagamento</h3>
+            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm">
+              <h3 className="mb-4 flex items-center gap-2 text-base font-bold text-ink"><CreditCard className="h-5 w-5 text-brand-600" /> Formas de Pagamento</h3>
               {Object.keys(dadosPagamentos).length > 0 ? (
                 <>
-                  <div className="w-full h-48 flex justify-center items-center"><Doughnut data={dataPagamentos} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }} /></div>
-                  <details className="mt-5 group bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
-                    <summary className="cursor-pointer p-3.5 font-semibold text-sm text-gray-700 flex justify-between items-center list-none [&::-webkit-details-marker]:hidden bg-gray-50 hover:bg-gray-100 transition-colors">
-                      Ver detalhamento e % <ChevronDown className="w-4 h-4 transition-transform duration-300 group-open:rotate-180 text-gray-500" />
+                  <div className="flex h-48 w-full items-center justify-center lg:h-56"><Doughnut data={dataPagamentos} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }} /></div>
+                  <details className="group mt-5 overflow-hidden rounded-xl border border-edge bg-canvas">
+                    <summary className="flex cursor-pointer list-none items-center justify-between p-3.5 text-sm font-semibold text-ink transition-colors hover:bg-edge/40 [&::-webkit-details-marker]:hidden">
+                      Ver detalhamento e % <ChevronDown className="h-4 w-4 text-ink-faint transition-transform duration-300 group-open:rotate-180" />
                     </summary>
-                    <div className="p-4 border-t border-gray-200 space-y-3.5 bg-white">
+                    <div className="space-y-3.5 border-t border-edge bg-surface p-4">
                       {Object.entries(dadosPagamentos).map(([nome, valor], index) => {
                         const cor = CORES_PAGAMENTOS[index % CORES_PAGAMENTOS.length];
                         const porcentagem = totalGasto > 0 ? ((valor / totalGasto) * 100).toFixed(1) : "0.0";
                         return (
                           <div key={nome} className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2.5"><span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cor }}></span><span className="text-gray-700 font-medium truncate max-w-[120px]">{nome}</span></div>
-                            <div className="flex items-center gap-3"><span className="text-gray-900 font-semibold">R$ {valor.toFixed(2)}</span><span className="text-gray-500 text-xs bg-gray-100 px-1.5 py-0.5 rounded min-w-[3.5rem] text-center font-medium">{porcentagem}%</span></div>
+                            <div className="flex items-center gap-2.5"><span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: cor }}></span><span className="max-w-[140px] truncate font-medium text-ink">{nome}</span></div>
+                            <div className="flex items-center gap-3"><span className="font-semibold text-ink">R$ {valor.toFixed(2)}</span><span className="min-w-[3.5rem] rounded bg-canvas px-1.5 py-0.5 text-center text-xs font-medium text-ink-muted">{porcentagem}%</span></div>
                           </div>
                         );
                       })}
                     </div>
                   </details>
                 </>
-              ) : (<p className="text-gray-400 text-xs text-center py-12">Sem dados de pagamento.</p>)}
+              ) : (<p className="py-12 text-center text-xs text-ink-faint">Sem dados de pagamento.</p>)}
             </div>
-            
-            <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-200/80">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-base font-bold text-gray-800">Histórico de Gastos</h3>
-                <div className="flex bg-gray-100 rounded-lg p-1 border border-gray-200">
-                  <button onClick={() => setVisaoHistorico("diario")} className={`px-3 py-1 text-[11px] font-bold rounded-md transition-colors ${visaoHistorico === "diario" ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700"}`}>Diário</button>
-                  <button onClick={() => setVisaoHistorico("mensal")} className={`px-3 py-1 text-[11px] font-bold rounded-md transition-colors ${visaoHistorico === "mensal" ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700"}`}>Mensal</button>
+
+            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm lg:col-span-2">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-base font-bold text-ink">Histórico de Gastos</h3>
+                <div className="flex rounded-lg border border-edge bg-canvas p-1">
+                  <button onClick={() => setVisaoHistorico("diario")} className={`rounded-md px-3 py-1 text-[11px] font-semibold transition-colors ${visaoHistorico === "diario" ? "bg-surface text-brand-700 shadow-sm" : "text-ink-muted hover:text-ink"}`}>Diário</button>
+                  <button onClick={() => setVisaoHistorico("mensal")} className={`rounded-md px-3 py-1 text-[11px] font-semibold transition-colors ${visaoHistorico === "mensal" ? "bg-surface text-brand-700 shadow-sm" : "text-ink-muted hover:text-ink"}`}>Mensal</button>
                 </div>
               </div>
 
               {visaoHistorico === "diario" ? (
                 Object.keys(dadosDias).length > 0 ? (
-                  <div className="w-full h-52 animate-in fade-in zoom-in-95 duration-300"><Bar data={dataBarras} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#f3f4f6' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} /></div>
-                ) : (<p className="text-gray-400 text-xs text-center py-12">Sem histórico neste período.</p>)
+                  <div className="h-52 w-full lg:h-72"><Bar data={dataBarras} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#eef1f4' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} /></div>
+                ) : (<p className="py-12 text-center text-xs text-ink-faint">Sem histórico neste período.</p>)
               ) : (
                 Object.keys(dadosMeses).length > 0 ? (
-                  <div className="w-full h-52 animate-in fade-in zoom-in-95 duration-300"><Line data={dataLinha} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#f3f4f6' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} /></div>
-                ) : (<p className="text-gray-400 text-xs text-center py-12">Sem histórico mensal.</p>)
+                  <div className="h-52 w-full lg:h-72"><Line data={dataLinha} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#eef1f4' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} /></div>
+                ) : (<p className="py-12 text-center text-xs text-ink-faint">Sem histórico mensal.</p>)
               )}
             </div>
           </div>
         )}
 
-        {/* 🌟 NOVA ABA: GERENCIADOR DE ORÇAMENTOS E LIMITES MENSAL 🌟 */}
+        {/* ABA ORÇAMENTO */}
         {abaAtual === "orcamento" && (
-          <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-200/80 space-y-5 animate-in fade-in duration-300">
-            <div>
-              <h3 className="text-base font-bold text-gray-800">Limites de Gasto Mensal</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Defina quanto deseja gastar em cada categoria no mês.</p>
+          <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm sm:p-6">
+            <div className="mb-5">
+              <h3 className="text-base font-bold text-ink">Limites de Gasto Mensal</h3>
+              <p className="mt-0.5 text-xs text-ink-muted sm:text-sm">Defina quanto deseja gastar em cada categoria no mês.</p>
             </div>
 
-            <div className="space-y-4">
-              {CATEGORIAS_SISTEMA.map((cat) => {
-                // Realiza a leitura matemática: quanto o usuário já consumiu nessa categoria no mês selecionado
+            <div className="grid gap-4 lg:grid-cols-2">
+              {CATEGORIAS.map((cat) => {
                 const jaGasto = dadosCategorias[cat] || 0;
-                // Lê se existe um teto limite configurado para ela no mapa
                 const limiteDefinido = limites[cat] || null;
-                
-                // Calcula a porcentagem do uso do dinheiro
                 const porcentagemUso = limiteDefinido ? (jaGasto / limiteDefinido) * 100 : 0;
 
-                // Lógica de Engenharia Visual: Define a cor da barra baseado no perigo do estouro
-                let corDaBarra = "bg-green-500";
+                let corDaBarra = "bg-brand-500";
                 if (porcentagemUso >= 70 && porcentagemUso < 90) corDaBarra = "bg-amber-500";
                 if (porcentagemUso >= 90) corDaBarra = "bg-red-500";
 
                 return (
-                  <div key={cat} className="p-3 bg-gray-50 rounded-xl border border-gray-200/60 space-y-2">
-                    <div className="flex justify-between items-center text-sm font-medium">
-                      <span className="text-gray-800">{cat}</span>
-                      
-                      {/* Se o usuário clicou para editar o limite dessa categoria, renderiza o formulário inline */}
+                  <div key={cat} className="space-y-2 rounded-xl border border-edge bg-canvas p-4">
+                    <div className="flex items-center justify-between text-sm font-medium">
+                      <span className="text-ink">{cat}</span>
+
                       {categoriaEditandoLimite === cat ? (
-                        <form onSubmit={(e) => salvarLimiteCategoria(e, cat)} className="flex items-center gap-1.5 animate-in slide-in-from-right duration-200">
+                        <form onSubmit={(e) => salvarLimiteCategoria(e, cat)} className="flex items-center gap-1.5">
                           <input
                             required
                             type="number"
                             placeholder="R$"
                             value={valorNovoLimite}
                             onChange={(e) => setValorNovoLimite(e.target.value)}
-                            className="w-20 bg-white border border-gray-300 rounded-md px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-20 rounded-md border border-edge bg-surface px-1.5 py-1 text-xs focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
                           />
-                          <button type="submit" disabled={salvandoLimite} className="bg-blue-600 text-white p-1 rounded-md hover:bg-blue-700">
-                            {salvandoLimite ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                          <button type="submit" disabled={salvandoLimite} className="rounded-md bg-brand-600 p-1.5 text-white hover:bg-brand-700">
+                            {salvandoLimite ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                           </button>
-                          <button type="button" onClick={() => setCategoriaEditandoLimite(null)} className="bg-gray-200 text-gray-600 p-1 rounded-md hover:bg-gray-300">
-                            <X className="w-3 h-3" />
+                          <button type="button" onClick={() => setCategoriaEditandoLimite(null)} className="rounded-md bg-edge p-1.5 text-ink-muted hover:bg-edge/70">
+                            <X className="h-3 w-3" />
                           </button>
                         </form>
                       ) : (
                         <div className="flex items-center gap-1.5 text-xs">
                           {limiteDefinido ? (
                             <>
-                              <span className="text-gray-900 font-bold">Limite: R$ {limiteDefinido.toFixed(0)}</span>
-                              <button onClick={() => { setCategoriaEditandoLimite(cat); setValorNovoLimite(limiteDefinido.toString()); }} className="text-gray-400 hover:text-blue-500">
-                                <Pencil className="w-3 h-3" />
+                              <span className="font-bold text-ink">Limite: R$ {limiteDefinido.toFixed(0)}</span>
+                              <button onClick={() => { setCategoriaEditandoLimite(cat); setValorNovoLimite(limiteDefinido.toString()); }} className="text-ink-faint hover:text-brand-600">
+                                <Pencil className="h-3 w-3" />
                               </button>
                             </>
                           ) : (
-                            <button onClick={() => setCategoriaEditandoLimite(cat)} className="text-blue-600 font-semibold hover:underline">
+                            <button onClick={() => setCategoriaEditandoLimite(cat)} className="font-semibold text-brand-700 hover:underline">
                               + Definir Teto
                             </button>
                           )}
@@ -539,15 +535,14 @@ async function buscarLimites() {
                       )}
                     </div>
 
-                    {/* Exibe o status da barra de progresso caso o limite exista */}
                     {limiteDefinido && (
                       <div className="space-y-1">
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-edge">
                           <div className={`h-2.5 rounded-full ${corDaBarra} transition-all duration-500`} style={{ width: `${Math.min(porcentagemUso, 100)}%` }}></div>
                         </div>
-                        <div className="flex justify-between text-[11px] font-medium text-gray-500">
+                        <div className="flex justify-between text-[11px] font-medium text-ink-muted">
                           <span>Gasto: R$ {jaGasto.toFixed(2)}</span>
-                          <span className={porcentagemUso >= 100 ? "text-red-600 font-bold" : ""}>{porcentagemUso.toFixed(1)}%</span>
+                          <span className={porcentagemUso >= 100 ? "font-bold text-red-600" : ""}>{porcentagemUso.toFixed(1)}%</span>
                         </div>
                       </div>
                     )}
@@ -558,68 +553,60 @@ async function buscarLimites() {
           </div>
         )}
 
+        {/* ABA HISTÓRICO */}
         {abaAtual === "tabela" && (
-          <div className="space-y-4 animate-in fade-in duration-300">
-            <div className="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-sm space-y-3">
-              <h3 className="text-sm font-bold flex items-center gap-2 text-gray-800"><Filter className="w-4 h-4 text-blue-500" /> Filtros da Tabela</h3>
-              <div className="grid grid-cols-1 gap-3">
-                <input type="date" value={filtroTabelaData} onChange={e => setFiltroTabelaData(e.target.value)} className="w-full text-sm bg-gray-50 border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <div className="grid grid-cols-2 gap-3">
-                  <select value={filtroTabelaCategoria} onChange={e => setFiltroTabelaCategoria(e.target.value)} className="w-full text-sm bg-gray-50 border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 truncate">
-                    <option value="todas">Todas Categorias</option>
-                    <option value="Alimentação">Alimentação (Mercados)</option>
-                    <option value="Comer Fora">Comer Fora (Restaurantes)</option>
-                    <option value="Lazer">Lazer</option>
-                    <option value="Saúde">Saúde</option>
-                    <option value="Transporte">Transporte</option>
-                    <option value="Casa">Casa</option>
-                    <option value="Outros">Outros</option>
-                  </select>
-                  <select value={filtroTabelaPagamento} onChange={e => setFiltroTabelaPagamento(e.target.value)} className="w-full text-sm bg-gray-50 border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 truncate">
-                    <option value="todas">Todos Pagamentos</option>
-                    <option value="Débito">Débito</option>
-                    <option value="Crédito">Crédito</option>
-                    <option value="Pix">Pix</option>
-                    <option value="Dinheiro">Dinheiro</option>
-                    <option value="Vale Alimentação">Vale Alimentação</option>
-                    <option value="Vale Refeição">Vale Refeição</option>
-                  </select>
-                </div>
+          <div className="space-y-4">
+            <div className="space-y-3 rounded-2xl border border-edge bg-surface p-4 shadow-sm sm:p-5">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-ink"><Filter className="h-4 w-4 text-brand-600" /> Filtros da Tabela</h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <input type="date" value={filtroTabelaData} onChange={e => setFiltroTabelaData(e.target.value)} className={inputFiltro} />
+                <select value={filtroTabelaCategoria} onChange={e => setFiltroTabelaCategoria(e.target.value)} className={`${inputFiltro} truncate`}>
+                  <option value="todas">Todas Categorias</option>
+                  {CATEGORIAS.map((cat) => (
+                    <option key={cat} value={cat}>{ROTULOS_CATEGORIAS[cat] || cat}</option>
+                  ))}
+                </select>
+                <select value={filtroTabelaPagamento} onChange={e => setFiltroTabelaPagamento(e.target.value)} className={`${inputFiltro} truncate`}>
+                  <option value="todas">Todos Pagamentos</option>
+                  {FORMAS_PAGAMENTO.map((fp) => (
+                    <option key={fp} value={fp}>{fp}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden mb-8">
+            <div className="mb-8 overflow-hidden rounded-2xl border border-edge bg-surface shadow-sm">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left text-gray-600">
-                  <thead className="text-xs text-gray-500 uppercase bg-gray-50/80 border-b border-gray-200/80">
+                <table className="w-full text-left text-sm text-ink-muted">
+                  <thead className="border-b border-edge bg-canvas text-xs uppercase text-ink-faint">
                     <tr>
-                      <th className="px-4 py-3 whitespace-nowrap">Data</th>
-                      <th className="px-4 py-3 whitespace-nowrap">Estabelecimento</th>
-                      <th className="px-4 py-3 whitespace-nowrap">Detalhes</th>
-                      <th className="px-4 py-3 whitespace-nowrap text-right">Valor e Ações</th>
+                      <th className="whitespace-nowrap px-4 py-3">Data</th>
+                      <th className="whitespace-nowrap px-4 py-3">Estabelecimento</th>
+                      <th className="whitespace-nowrap px-4 py-3">Detalhes</th>
+                      <th className="whitespace-nowrap px-4 py-3 text-right">Valor e Ações</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-edge/60">
                     {tabelaFiltrada.length > 0 ? (
                       tabelaFiltrada.map(g => (
-                        <tr key={g.id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-4 py-3.5 whitespace-nowrap text-gray-900 font-medium">{g.data_compra ? g.data_compra.split('-').reverse().join('/') : 'S/ Data'}</td>
-                          <td className="px-4 py-3.5 max-w-[120px] truncate" title={g.estabelecimento}>{g.estabelecimento}</td>
-                          <td className="px-4 py-3.5 space-y-1.5">
-                            <span className="block bg-blue-50 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded max-w-max truncate">{g.categoria}</span>
-                            <span className="block bg-green-50 text-green-700 text-[10px] font-semibold px-2 py-0.5 rounded max-w-max truncate">{g.forma_pagamento}</span>
+                        <tr key={g.id} className="transition-colors hover:bg-canvas/60">
+                          <td className="whitespace-nowrap px-4 py-3.5 font-medium text-ink">{g.data_compra ? g.data_compra.split('-').reverse().join('/') : 'S/ Data'}</td>
+                          <td className="max-w-[120px] truncate px-4 py-3.5 sm:max-w-[240px]" title={g.estabelecimento}>{g.estabelecimento}</td>
+                          <td className="space-y-1.5 px-4 py-3.5 sm:space-y-0 sm:space-x-1.5">
+                            <span className="inline-block max-w-max truncate rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700">{g.categoria}</span>
+                            <span className="inline-block max-w-max truncate rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">{g.forma_pagamento}</span>
                           </td>
-                          <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                            <span className="block font-bold text-gray-900 mb-1.5">R$ {g.valor.toFixed(2)}</span>
+                          <td className="whitespace-nowrap px-4 py-3.5 text-right">
+                            <span className="mb-1.5 block font-bold text-ink">R$ {g.valor.toFixed(2)}</span>
                             <div className="flex justify-end gap-1.5">
-                              <button onClick={() => setGastoEditando(g)} className="text-blue-500 hover:bg-blue-100 p-1.5 rounded transition-colors"><Pencil className="w-4 h-4" /></button>
-                              <button onClick={() => deletarGasto(g.id)} className="text-red-500 hover:bg-red-100 p-1.5 rounded transition-colors"><Trash2 className="w-4 h-4" /></button>
+                              <button onClick={() => setGastoEditando(g)} className="rounded p-1.5 text-brand-600 transition-colors hover:bg-brand-50"><Pencil className="h-4 w-4" /></button>
+                              <button onClick={() => deletarGasto(g.id)} className="rounded p-1.5 text-red-500 transition-colors hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
                             </div>
                           </td>
                         </tr>
                       ))
                     ) : (
-                      <tr><td colSpan={4} className="px-4 py-12 text-center text-gray-400">Nenhum gasto encontrado.</td></tr>
+                      <tr><td colSpan={4} className="px-4 py-12 text-center text-ink-faint">Nenhum gasto encontrado.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -627,62 +614,55 @@ async function buscarLimites() {
             </div>
           </div>
         )}
-      </div>
+      </main>
 
       {gastoEditando && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50">
-              <h3 className="font-bold text-lg text-gray-800">Editar Gasto</h3>
-              <button onClick={() => setGastoEditando(null)} className="text-gray-400 hover:text-gray-600 bg-gray-200 hover:bg-gray-300 p-1.5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-surface shadow-xl">
+            <div className="flex items-center justify-between border-b border-edge bg-canvas p-4">
+              <h3 className="text-lg font-bold text-ink">Editar Gasto</h3>
+              <button onClick={() => setGastoEditando(null)} className="rounded-full bg-edge p-1.5 text-ink-muted transition-colors hover:bg-edge/70 hover:text-ink"><X className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={salvarEdicao} className="p-5 space-y-4">
+            <form onSubmit={salvarEdicao} className="space-y-4 p-5">
               <div>
-                <label className="block text-sm font-medium mb-1 text-gray-700">Estabelecimento</label>
-                <input required value={gastoEditando.estabelecimento} onChange={e => setGastoEditando({...gastoEditando, establishment: e.target.value})} type="text" className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                <label className="mb-1 block text-sm font-medium text-ink">Estabelecimento</label>
+                <input required value={gastoEditando.estabelecimento} onChange={e => setGastoEditando({...gastoEditando, estabelecimento: e.target.value})} type="text" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-700">Valor (R$)</label>
-                  <input required value={gastoEditando.valor} onChange={e => setGastoEditando({...gastoEditando, valor: e.target.value})} type="number" step="0.01" className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                  <label className="mb-1 block text-sm font-medium text-ink">Valor (R$)</label>
+                  <input required value={gastoEditando.valor} onChange={e => setGastoEditando({...gastoEditando, valor: e.target.value})} type="number" step="0.01" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-700">Data</label>
-                  <input required value={gastoEditando.data_compra || ""} onChange={e => setGastoEditando({...gastoEditando, data_compra: e.target.value})} type="date" className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                  <label className="mb-1 block text-sm font-medium text-ink">Data</label>
+                  <input required value={gastoEditando.data_compra || ""} onChange={e => setGastoEditando({...gastoEditando, data_compra: e.target.value})} type="date" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-700">Categoria</label>
-                  <select value={gastoEditando.categoria} onChange={e => setGastoEditando({...gastoEditando, categoria: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                    <option value="Alimentação">Alimentação</option>
-                    <option value="Comer Fora">Comer Fora</option>
-                    <option value="Lazer">Lazer</option>
-                    <option value="Saúde">Saúde</option>
-                    <option value="Transporte">Transporte</option>
-                    <option value="Casa">Casa</option>
-                    <option value="Outros">Outros</option>
+                  <label className="mb-1 block text-sm font-medium text-ink">Categoria</label>
+                  <select value={gastoEditando.categoria} onChange={e => setGastoEditando({...gastoEditando, categoria: e.target.value})} className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25">
+                    {CATEGORIAS.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-700">Pagamento</label>
-                  <select value={gastoEditando.forma_pagamento} onChange={e => setGastoEditando({...gastoEditando, forma_pagamento: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                    <option value="Débito">Débito</option>
-                    <option value="Crédito">Crédito</option>
-                    <option value="Pix">Pix</option>
-                    <option value="Dinheiro">Dinheiro</option>
-                    <option value="Vale Alimentação">Vale Alimentação</option>
-                    <option value="Vale Refeição">Vale Refeição</option>
+                  <label className="mb-1 block text-sm font-medium text-ink">Pagamento</label>
+                  <select value={gastoEditando.forma_pagamento} onChange={e => setGastoEditando({...gastoEditando, forma_pagamento: e.target.value})} className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25">
+                    {FORMAS_PAGAMENTO.map((fp) => (
+                      <option key={fp} value={fp}>{fp}</option>
+                    ))}
                   </select>
                 </div>
               </div>
-              <button type="submit" disabled={loadingEdit} className="w-full bg-blue-600 text-white rounded-lg p-3 font-bold flex justify-center items-center gap-2 mt-6 hover:bg-blue-700 transition-colors">
-                {loadingEdit ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} Salvar Alterações
+              <button type="submit" disabled={loadingEdit} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 p-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-60">
+                {loadingEdit ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Salvar Alterações
               </button>
             </form>
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }

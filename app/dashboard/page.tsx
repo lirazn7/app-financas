@@ -31,7 +31,7 @@ export default function Dashboard() {
   const [emailInput, setEmailInput] = useState("");
   const [senhaInput, setSenhaInput] = useState("");
   const [modoCadastro, setModoCadastro] = useState(false);
-
+  
   // --- ESTADOS DE DADOS (GASTOS) ---
   const [loading, setLoading] = useState(true);
   const [todosGastos, setTodosGastos] = useState<any[]>([]);
@@ -41,6 +41,8 @@ export default function Dashboard() {
 
   // --- ESTADOS DE NAVEGAÇÃO/VISUALIZAÇÃO ---
   const [abaAtual, setAbaAtual] = useState<"graficos" | "orcamento" | "tabela">("graficos");
+  const [pagamentosSelecionados, setPagamentosSelecionados] = useState<string[]>([]);
+  const [dropdownPagamentosAberto, setDropdownPagamentosAberto] = useState(false);
   const [visaoHistorico, setVisaoHistorico] = useState<"diario" | "mensal">("diario");
 
   // --- ESTADOS DE FILTRO DA TABELA ---
@@ -342,6 +344,54 @@ export default function Dashboard() {
     return true;
   });
 
+  // --------------------------------------------------------
+  // LÓGICA DO GRÁFICO: TENDÊNCIA DE PAGAMENTOS MÊS A MÊS
+  // --------------------------------------------------------
+  
+  // 1. Pega todos os meses únicos que existem no histórico de gastos e ordena
+  const todosOsMesesParaLinha = Array.from(
+    new Set(todosGastos.map(g => g.data_compra ? g.data_compra.substring(0, 7) : null).filter(Boolean))
+  ).sort() as string[];
+
+  // 2. Formata os rótulos do Eixo X (Ex: "Fev / 2026")
+  const labelsEixoX = todosOsMesesParaLinha.map(mes => formatarMesAno(mes));
+
+  // 3. Paleta de cores fixa para os pagamentos não mudarem de cor ao filtrar
+  const coresPagamentosFixo: { [key: string]: string } = {
+    "Crédito": "#8B5CF6", // Roxo
+    "Débito": "#3B82F6",  // Azul
+    "Pix": "#10B981",     // Verde
+    "Dinheiro": "#F59E0B", // Amarelo
+    "Vale Alimentação": "#F43F5E", // Rosa
+    "Vale Refeição": "#F97316", // Laranja
+  };
+
+  // 4. Monta os "fios" (datasets) do gráfico baseado no que o usuário marcou
+  const dataLinhaPagamentos = {
+    labels: labelsEixoX,
+    datasets: pagamentosSelecionados.map((pagamento) => {
+      // Calcula a soma daquele pagamento específico mês a mês
+      const somaMensal = todosOsMesesParaLinha.map(mes => {
+        return todosGastos
+          .filter(g => g.forma_pagamento === pagamento && g.data_compra?.startsWith(mes))
+          .reduce((acc, g) => acc + (g.valor || 0), 0);
+      });
+
+      const cor = coresPagamentosFixo[pagamento] || "#9CA3AF";
+
+      return {
+        label: pagamento,
+        data: somaMensal,
+        borderColor: cor,
+        backgroundColor: cor,
+        borderWidth: 2,
+        tension: 0.4,
+        pointBackgroundColor: cor,
+        fill: false,
+      };
+    })
+  };
+
   return (
     <div className="min-h-screen bg-canvas">
       <AppHeader email={usuarioAtual?.email} paginaAtiva="dashboard" onLogout={fazerLogout} />
@@ -453,6 +503,77 @@ export default function Dashboard() {
                   </details>
                 </>
               ) : (<p className="py-12 text-center text-xs text-ink-faint">Sem dados de pagamento.</p>)}
+            </div>
+
+            {/* 🌟 NOVO GRÁFICO: EVOLUÇÃO DE PAGAMENTOS MÊS A MÊS 🌟 */}
+            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm lg:col-span-2">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-base font-bold text-ink flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-brand-600" /> Tendência de Pagamentos
+                </h3>
+                
+                {/* O Dropdown Customizado com Checkboxes */}
+                <div className="relative">
+                  <button 
+                    onClick={() => setDropdownPagamentosAberto(!dropdownPagamentosAberto)}
+                    className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider bg-canvas border border-edge rounded-lg px-3 py-2 text-ink-muted hover:bg-edge/50 transition-colors"
+                  >
+                    Filtrar Meios <ChevronDown className={`w-3 h-3 transition-transform ${dropdownPagamentosAberto ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {dropdownPagamentosAberto && (
+                    <div className="absolute right-0 mt-2 w-52 bg-surface border border-edge shadow-xl rounded-xl z-20 p-2 space-y-1 animate-in fade-in zoom-in-95 duration-200">
+                      <p className="text-[10px] font-bold text-ink-faint uppercase tracking-wider px-2 pb-1 mb-1 border-b border-edge/50">Exibir no gráfico:</p>
+                      {["Crédito", "Débito", "Pix", "Dinheiro", "Vale Alimentação", "Vale Refeição"].map(pag => (
+                        <label key={pag} className="flex items-center gap-2.5 p-2 hover:bg-canvas rounded-lg cursor-pointer text-sm font-medium text-ink transition-colors">
+                          <input 
+                            type="checkbox"
+                            checked={pagamentosSelecionados.includes(pag)}
+                            onChange={() => {
+                              if (pagamentosSelecionados.includes(pag)) {
+                                setPagamentosSelecionados(prev => prev.filter(p => p !== pag));
+                              } else {
+                                setPagamentosSelecionados(prev => [...prev, pag]);
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-edge text-brand-600 focus:ring-brand-500 cursor-pointer"
+                          />
+                          {pag}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {pagamentosSelecionados.length === 0 ? (
+                <div className="w-full h-52 flex flex-col items-center justify-center bg-canvas/70 border-2 border-dashed border-edge rounded-xl">
+                  <Filter className="w-8 h-8 text-ink-faint mb-2" />
+                  <p className="text-xs text-ink-muted font-medium text-center leading-relaxed">
+                    Nenhum método selecionado.<br/>
+                    <span className="text-brand-600 font-semibold cursor-pointer hover:underline" onClick={() => setDropdownPagamentosAberto(true)}>
+                      Abra o filtro
+                    </span> e escolha os pagamentos que deseja comparar.
+                  </p>
+                </div>
+              ) : (
+                <div className="w-full h-52 animate-in fade-in duration-500 lg:h-64">
+                  <Line 
+                    data={dataLinhaPagamentos} 
+                    options={{ 
+                      responsive: true, 
+                      maintainAspectRatio: false, 
+                      plugins: { 
+                        legend: { display: true, position: 'bottom', labels: { boxWidth: 12, usePointStyle: true, font: { size: 11, family: 'sans-serif' } } } 
+                      }, 
+                      scales: { 
+                        y: { beginAtZero: true, ticks: { font: { size: 10 } }, grid: { color: '#eef1f4' } }, 
+                        x: { ticks: { font: { size: 10 } }, grid: { display: false } } 
+                      } 
+                    }} 
+                  />
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm lg:col-span-2">

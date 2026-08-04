@@ -35,6 +35,7 @@ export default function Dashboard() {
   const [cartaoEstabelecimento, setCartaoEstabelecimento] = useState("");
   const [cartaoValor, setCartaoValor] = useState("");
   const [cartaoParcelas, setCartaoParcelas] = useState("1");
+  const [isFixo, setIsFixo] = useState(false); // NOVO: Controle de compra fixa
   const [salvandoCartao, setSalvandoCartao] = useState(false);
   const [mostrarTodasParcelas, setMostrarTodasParcelas] = useState(false);
   const [filtroParcelas, setFiltroParcelas] = useState<"todos" | "fixos">("todos");
@@ -140,6 +141,25 @@ export default function Dashboard() {
       buscarCartoes();
     } catch (error: any) {
       alert("Erro ao salvar cartão: " + error.message);
+    }
+  };
+
+  // NOVA FUNÇÃO: Deletar Cartão Inteiro
+  const deletarCartaoAtual = async () => {
+    if (!cartaoSelecionado) return;
+    if (!window.confirm("ATENÇÃO: Excluir este cartão apagará permanentemente todo o histórico de compras e faturas atreladas a ele. Deseja realmente excluir?")) return;
+
+    try {
+      const { error } = await supabase.from("cartoes").delete().eq("id", cartaoSelecionado);
+      if (error) throw error;
+      
+      alert("Cartão e faturas excluídos com sucesso!");
+      const novaLista = cartoes.filter(c => c.id !== cartaoSelecionado);
+      setCartoes(novaLista);
+      setCartaoSelecionado(novaLista.length > 0 ? novaLista[0].id : null);
+      buscarGastos(); 
+    } catch (error: any) {
+      alert("Erro ao excluir cartão: " + error.message);
     }
   };
 
@@ -374,21 +394,21 @@ export default function Dashboard() {
     setSalvandoCartao(true);
     try {
       const valorTotal = parseFloat(cartaoValor);
-      const qtdParcelas = parseInt(cartaoParcelas);
-      const valorParcela = valorTotal / (qtdParcelas > 0 ? qtdParcelas : 1); 
+      const qtdParcelas = isFixo ? 1 : parseInt(cartaoParcelas);
+      const valorParcela = isFixo ? valorTotal : (valorTotal / (qtdParcelas > 0 ? qtdParcelas : 1)); 
 
       const novasParcelas = [];
       const dataAtual = new Date();
-      const mesesProjetados = cartaoParcelas === "fixo" ? 12 : qtdParcelas;
+      const mesesProjetados = isFixo ? 12 : (qtdParcelas > 0 ? qtdParcelas : 1);
 
       for (let i = 0; i < mesesProjetados; i++) {
         const mesCompra = new Date(dataAtual.getFullYear(), dataAtual.getMonth() + i, 15);
         const dataFormatada = mesCompra.toISOString().split('T')[0];
         
         let nomeEstabelecimento = cartaoEstabelecimento;
-        if (cartaoParcelas !== "fixo" && qtdParcelas > 1) {
+        if (!isFixo && qtdParcelas > 1) {
           nomeEstabelecimento = `${cartaoEstabelecimento} (${i + 1}/${qtdParcelas})`;
-        } else if (cartaoParcelas === "fixo") {
+        } else if (isFixo) {
           nomeEstabelecimento = `${cartaoEstabelecimento} (Fixo)`;
         }
 
@@ -407,7 +427,7 @@ export default function Dashboard() {
       if (error) throw error;
 
       alert("Compra lançada na fatura com sucesso!");
-      setCartaoEstabelecimento(""); setCartaoValor(""); setCartaoParcelas("1");
+      setCartaoEstabelecimento(""); setCartaoValor(""); setCartaoParcelas("1"); setIsFixo(false);
       buscarGastos(); 
     } catch (error: any) { alert("Erro ao lançar compra: " + error.message); } finally { setSalvandoCartao(false); }
   };
@@ -783,6 +803,9 @@ export default function Dashboard() {
                       <div className="flex items-center gap-2 text-[11px] font-bold tracking-wider text-white/80 uppercase">
                         <CreditCard className="w-4 h-4" /> Fatura Atual • {diasFaltamFechar === 0 ? "Fecha Hoje" : `Fecha em ${diasFaltamFechar} dias`}
                       </div>
+                      <button onClick={deletarCartaoAtual} title="Excluir Cartão" className="text-white/60 hover:text-red-300 transition-colors p-2 rounded-full hover:bg-white/10">
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     </div>
                     <div className="mb-10">
                       <p className="text-sm text-white/80 mb-1">Total a Pagar</p>
@@ -843,20 +866,37 @@ export default function Dashboard() {
                           <input required value={cartaoValor} onChange={e => setCartaoValor(e.target.value)} type="number" step="0.01" placeholder="0,00" className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
                         </div>
                         <div className="w-1/3">
-                          <label className="block text-xs font-semibold text-ink mb-1.5">Parcelas</label>
-                          <select value={cartaoParcelas} onChange={e => setCartaoParcelas(e.target.value)} className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500">
-                            <option value="1">1x</option>
-                            <option value="2">2x</option>
-                            <option value="3">3x</option>
-                            <option value="4">4x</option>
-                            <option value="5">5x</option>
-                            <option value="6">6x</option>
-                            <option value="10">10x</option>
-                            <option value="12">12x</option>
-                            <option value="fixo">Fixo Mensal</option>
-                          </select>
+                          <label className="block text-xs font-semibold text-ink mb-1.5">Nº Parcelas</label>
+                          <input 
+                            required 
+                            disabled={isFixo}
+                            value={cartaoParcelas} 
+                            onChange={e => setCartaoParcelas(e.target.value)} 
+                            type="number" 
+                            min="1"
+                            className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50" 
+                          />
                         </div>
                       </div>
+
+                      {/* Checkbox Fixa e Preview de Valor */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-canvas p-3 rounded-xl border border-edge">
+                        <label className="flex items-center gap-2 text-sm text-ink font-medium cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={isFixo} 
+                            onChange={e => setIsFixo(e.target.checked)} 
+                            className="w-4 h-4 rounded border-edge text-brand-600 focus:ring-brand-500" 
+                          />
+                          Compra Fixa Mensal
+                        </label>
+                        {cartaoValor && (
+                          <span className="text-xs font-bold text-brand-700 bg-brand-50 px-2.5 py-1.5 rounded-lg border border-brand-100">
+                            Será cobrado: R$ {(isFixo ? parseFloat(cartaoValor) : (parseFloat(cartaoValor) / (parseInt(cartaoParcelas) || 1))).toFixed(2)} / mês
+                          </span>
+                        )}
+                      </div>
+
                       <button type="submit" disabled={salvandoCartao} className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-bold text-sm py-3 rounded-xl transition-colors flex justify-center items-center gap-2 mt-2">
                         {salvandoCartao ? <Loader2 className="w-4 h-4 animate-spin" /> : "✓ Adicionar à Fatura"}
                       </button>
@@ -880,6 +920,7 @@ export default function Dashboard() {
                             <th className="px-5 py-3">Estabelecimento</th>
                             <th className="px-5 py-3 text-right">Valor</th>
                             <th className="px-5 py-3 text-center">Mês</th>
+                            <th className="px-5 py-3 text-right">Ações</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-edge/50">
@@ -890,15 +931,27 @@ export default function Dashboard() {
                                 <tr key={parcela.id} className="hover:bg-canvas/50">
                                   <td className="px-5 py-4 flex items-center gap-3 font-medium text-ink">
                                     <div className="w-8 h-8 rounded-full bg-brand-50 text-brand-600 flex shrink-0 items-center justify-center"><ShoppingCart className="w-4 h-4" /></div>
-                                    <span className="truncate max-w-[120px] sm:max-w-xs">{parcela.estabelecimento}</span>
+                                    <span className="truncate max-w-[100px] sm:max-w-[150px] block" title={parcela.estabelecimento}>{parcela.estabelecimento}</span>
                                   </td>
                                   <td className="px-5 py-4 text-right font-bold text-ink">R$ {parcela.valor.toFixed(2)}</td>
                                   <td className="px-5 py-4 text-center text-xs text-ink-muted">{mes}/{ano.slice(-2)}</td>
+                                  
+                                  {/* Botões de Ação Específicos para a Parcela (Edita Fatura) */}
+                                  <td className="px-5 py-4 text-right">
+                                    <div className="flex justify-end gap-1.5">
+                                      <button type="button" onClick={() => setGastoEditando(parcela)} className="rounded p-1.5 text-brand-600 transition-colors hover:bg-brand-50" title="Editar valor da parcela">
+                                        <Pencil className="h-4 w-4" />
+                                      </button>
+                                      <button type="button" onClick={() => deletarGasto(parcela.id)} className="rounded p-1.5 text-red-500 transition-colors hover:bg-red-50" title="Excluir parcela da fatura">
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </td>
                                 </tr>
                               );
                             })
                           ) : (
-                            <tr><td colSpan={3} className="px-5 py-8 text-center text-ink-muted">Nenhuma fatura encontrada.</td></tr>
+                            <tr><td colSpan={4} className="px-5 py-8 text-center text-ink-muted">Nenhuma fatura encontrada.</td></tr>
                           )}
                         </tbody>
                       </table>

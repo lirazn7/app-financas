@@ -593,12 +593,12 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* 🌟 CORREÇÃO 3: Menu superior com rolagem e sem quebrar o grid */}
-        <div className="mb-6 flex w-full gap-1 overflow-x-auto scrollbar-hide rounded-xl border border-edge bg-surface p-1.5 shadow-sm sm:max-w-[34rem]">
-          <button onClick={() => setAbaAtual("graficos")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'graficos' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><LayoutDashboard className="h-4 w-4 shrink-0" /> Gráficos</button>
-          <button onClick={() => setAbaAtual("orcamento")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'orcamento' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><Wallet className="h-4 w-4 shrink-0" /> Orçamento</button>
-          <button onClick={() => setAbaAtual("cartao")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'cartao' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><CreditCard className="h-4 w-4 shrink-0" /> Cartões</button>
-          <button onClick={() => setAbaAtual("tabela")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'tabela' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><TableIcon className="h-4 w-4 shrink-0" /> Histórico</button>
+        {/* 🌟 CORREÇÃO 3: Menu superior — no mobile ocupa toda a largura e rola; no desktop encolhe ao conteúdo (sem "barra cortada") */}
+        <div className="mb-6 flex w-full gap-1 overflow-x-auto scrollbar-hide rounded-xl border border-edge bg-surface p-1.5 shadow-sm lg:inline-flex lg:w-auto">
+          <button onClick={() => setAbaAtual("graficos")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm lg:flex-none lg:px-6 ${abaAtual === 'graficos' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><LayoutDashboard className="h-4 w-4 shrink-0" /> Gráficos</button>
+          <button onClick={() => setAbaAtual("orcamento")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm lg:flex-none lg:px-6 ${abaAtual === 'orcamento' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><Wallet className="h-4 w-4 shrink-0" /> Orçamento</button>
+          <button onClick={() => setAbaAtual("cartao")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm lg:flex-none lg:px-6 ${abaAtual === 'cartao' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><CreditCard className="h-4 w-4 shrink-0" /> Cartões</button>
+          <button onClick={() => setAbaAtual("tabela")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm lg:flex-none lg:px-6 ${abaAtual === 'tabela' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><TableIcon className="h-4 w-4 shrink-0" /> Histórico</button>
         </div>
 
         {/* ABA GRÁFICOS */}
@@ -833,9 +833,9 @@ export default function Dashboard() {
                  </button>
                </div>
             ) : (
-              <div className="grid w-full gap-6 lg:grid-cols-2">
-                <div className="space-y-6 w-full min-w-0">
-                  
+              <div className="grid w-full gap-6 lg:grid-cols-2 xl:grid-cols-5 items-start">
+                <div className="space-y-6 w-full min-w-0 xl:col-span-2">
+
                   {/* CARD PRINCIPAL - RESPONSIVO E SEGURO */}
                   <div className="rounded-3xl p-5 sm:p-7 text-white shadow-xl relative overflow-hidden transition-all duration-500 w-full min-w-0" style={{ backgroundColor: cartaoAtivo?.cor || '#0e5c3e' }}>
                     <div className="flex justify-between items-start mb-6 sm:mb-8 min-w-0 w-full">
@@ -888,8 +888,8 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="space-y-6 w-full min-w-0">
-                  
+                <div className="space-y-6 w-full min-w-0 xl:col-span-3">
+
                   {/* FORMULÁRIO DE LANÇAMENTO - RESPONSIVO E SEGURO */}
                   <form onSubmit={lancarCompraCartao} className="bg-surface rounded-2xl p-4 sm:p-6 border border-edge shadow-sm w-full min-w-0">
                     <h4 className="text-sm sm:text-base font-bold text-ink flex items-center gap-2 mb-4">

@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Bar, Pie, Doughnut, Line } from "react-chartjs-2";
-import { Loader2, TrendingUp, Calendar, CreditCard, ChevronDown, Table as TableIcon, LayoutDashboard, Filter, Trash2, Pencil, X, Save, Wallet, MoreHorizontal, ShoppingCart, BarChart3, Plus } from "lucide-react";
+import { Loader2, TrendingUp, Calendar, CreditCard, ChevronDown, Table as TableIcon, LayoutDashboard, Filter, Trash2, Pencil, X, Save, Wallet, ShoppingCart, BarChart3, Plus } from "lucide-react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -31,7 +31,7 @@ export default function Dashboard() {
   const [cartaoSelecionado, setCartaoSelecionado] = useState<number | null>(null);
   const [modalCartaoAberto, setModalCartaoAberto] = useState(false);
   const [novoCartao, setNovoCartao] = useState({ nome: "", limite: "", diaVencimento: "", diaFechamento: "", cor: "#0e5c3e" });
-
+  
   const [cartaoEstabelecimento, setCartaoEstabelecimento] = useState("");
   const [cartaoValor, setCartaoValor] = useState("");
   const [cartaoParcelas, setCartaoParcelas] = useState("1");
@@ -39,8 +39,7 @@ export default function Dashboard() {
   const [salvandoCartao, setSalvandoCartao] = useState(false);
   const [mostrarTodasParcelas, setMostrarTodasParcelas] = useState(false);
   const [filtroParcelas, setFiltroParcelas] = useState<"todos" | "fixos">("todos");
-
-  // Estado para controlar o mês de início (formato YYYY-MM)
+  
   const hojeLocal = new Date();
   const mesAtualDefault = `${hojeLocal.getFullYear()}-${String(hojeLocal.getMonth() + 1).padStart(2, '0')}`;
   const [cartaoMesInicio, setCartaoMesInicio] = useState(mesAtualDefault);
@@ -124,7 +123,7 @@ export default function Dashboard() {
         }, {});
         setLimites(mapaLimites);
       }
-    } catch (error: any) { }
+    } catch (error: any) {}
   }
 
   const cadastrarCartao = async (e: React.FormEvent) => {
@@ -139,7 +138,7 @@ export default function Dashboard() {
         cor: novoCartao.cor
       });
       if (error) throw error;
-
+      
       alert("Cartão adicionado com sucesso!");
       setModalCartaoAberto(false);
       setNovoCartao({ nome: "", limite: "", diaVencimento: "", diaFechamento: "", cor: "#0e5c3e" });
@@ -156,12 +155,12 @@ export default function Dashboard() {
     try {
       const { error } = await supabase.from("cartoes").delete().eq("id", cartaoSelecionado);
       if (error) throw error;
-
+      
       alert("Cartão e faturas excluídos com sucesso!");
       const novaLista = cartoes.filter(c => c.id !== cartaoSelecionado);
       setCartoes(novaLista);
       setCartaoSelecionado(novaLista.length > 0 ? novaLista[0].id : null);
-      buscarGastos();
+      buscarGastos(); 
     } catch (error: any) {
       alert("Erro ao excluir cartão: " + error.message);
     }
@@ -292,7 +291,7 @@ export default function Dashboard() {
       setLimites(prev => ({ ...prev, [categoria]: valorNumerico }));
       setCategoriaEditandoLimite(null);
       setValorNovoLimite("");
-    } catch (error: any) { } finally { setSalvandoLimite(false); }
+    } catch (error: any) {} finally { setSalvandoLimite(false); }
   };
 
   const deletarLimiteCategoria = async (categoria: string) => {
@@ -304,7 +303,7 @@ export default function Dashboard() {
       delete novosLimites[categoria];
       setLimites(novosLimites);
       setCategoriaEditandoLimite(null);
-    } catch (error: any) { }
+    } catch (error: any) {}
   };
 
   const salvarEdicao = async (e: React.FormEvent) => {
@@ -323,15 +322,14 @@ export default function Dashboard() {
       const novaLista = todosGastos.map(g => g.id === gastoEditando.id ? { ...g, ...gastoEditando, valor: valorNumerico } : g);
       setTodosGastos(novaLista);
       setGastoEditando(null);
-    } catch (error: any) { } finally { setLoadingEdit(false); }
+    } catch (error: any) {} finally { setLoadingEdit(false); }
   };
 
-  // 🗑️ DELETAR GASTO INTELIGENTE (Apaga em lote)
   const deletarGasto = async (gasto: any) => {
     const nomeBase = gasto.estabelecimento.replace(/\s*\(\d+\/\d+\)$|\s*\(Fixo\)$/, "").trim();
-
-    const parcelasRelacionadas = todosGastos.filter(g =>
-      g.cartao_id === gasto.cartao_id &&
+    
+    const parcelasRelacionadas = todosGastos.filter(g => 
+      g.cartao_id === gasto.cartao_id && 
       g.estabelecimento.replace(/\s*\(\d+\/\d+\)$|\s*\(Fixo\)$/, "").trim() === nomeBase
     );
 
@@ -372,7 +370,7 @@ export default function Dashboard() {
 
   // 💳 LÓGICA MESTRE DOS CARTÕES DE CRÉDITO
   const cartaoAtivo = cartoes.find(c => c.id === cartaoSelecionado);
-
+  
   let faturaAtualValor = 0;
   let limiteDisponivelCartao = 0;
   let diasFaltamFechar = 0;
@@ -394,14 +392,12 @@ export default function Dashboard() {
     }
 
     const mesStr = String(mesFatura + 1).padStart(2, '0');
-    mesFechamentoRef = `${anoFatura}-${mesStr}`;
+    mesFechamentoRef = `${anoFatura}-${mesStr}`; 
 
     faturaAtualValor = todosGastos
       .filter(g => g.cartao_id === cartaoAtivo.id && g.data_compra?.startsWith(mesFechamentoRef))
       .reduce((acc, g) => acc + (g.valor || 0), 0);
 
-    // 🌟 NOVA LÓGICA: O limite disponível passa a ser focado no MÊS, 
-    // subtraindo apenas o que já tem na fatura atual.
     limiteDisponivelCartao = cartaoAtivo.limite - faturaAtualValor;
 
     if (diaHoje <= cartaoAtivo.dia_fechamento) {
@@ -415,13 +411,11 @@ export default function Dashboard() {
     rotuloVencimento = `${cartaoAtivo.dia_vencimento} de ${mesesNomesAbrev[mesFatura]}`;
   }
 
-  // 💳 Lançar compra conectada ao cartão
   const lancarCompraCartao = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // 🚨 VALIDAÇÕES BLINDADAS E ESPECÍFICAS
+    
     const estabelecimentoDigitado = cartaoEstabelecimento.trim();
-
+    
     if (!cartaoSelecionado) return alert("❌ Selecione ou cadastre um cartão primeiro (ex: clique no botão azul do cartão).");
     if (!estabelecimentoDigitado) return alert("❌ O campo 'Estabelecimento' está VAZIO! \n\nAquele texto 'Ex: Mercado Livre' é apenas uma sugestão apagada. Você precisa digitar o nome do local.");
     if (!cartaoValor || parseFloat(cartaoValor) <= 0) return alert("❌ Preencha um 'Valor Total' válido maior que zero.");
@@ -432,18 +426,18 @@ export default function Dashboard() {
     try {
       const valorTotal = parseFloat(cartaoValor);
       const qtdParcelas = isFixo ? 1 : parseInt(cartaoParcelas);
-      const valorParcela = isFixo ? valorTotal : (valorTotal / (qtdParcelas > 0 ? qtdParcelas : 1));
+      const valorParcela = isFixo ? valorTotal : (valorTotal / (qtdParcelas > 0 ? qtdParcelas : 1)); 
 
       const novasParcelas = [];
       const [anoInicio, mesInicio] = cartaoMesInicio.split('-');
       const dataBaseInicio = new Date(parseInt(anoInicio), parseInt(mesInicio) - 1, 15);
-
+      
       const mesesProjetados = isFixo ? 12 : (qtdParcelas > 0 ? qtdParcelas : 1);
 
       for (let i = 0; i < mesesProjetados; i++) {
         const mesCompra = new Date(dataBaseInicio.getFullYear(), dataBaseInicio.getMonth() + i, 15);
         const dataFormatada = mesCompra.toISOString().split('T')[0];
-
+        
         let nomeEstabelecimento = estabelecimentoDigitado;
         if (!isFixo && qtdParcelas > 1) {
           nomeEstabelecimento = `${estabelecimentoDigitado} (${i + 1}/${qtdParcelas})`;
@@ -468,19 +462,18 @@ export default function Dashboard() {
       alert("🎉 Compra lançada na fatura com sucesso!");
       setCartaoEstabelecimento(""); setCartaoValor(""); setCartaoParcelas("1"); setIsFixo(false);
       setCartaoMesInicio(mesAtualDefault);
-      buscarGastos();
-    } catch (error: any) {
-      alert("⚠️ Erro fatal no servidor: " + error.message);
-    } finally {
-      setSalvandoCartao(false);
+      buscarGastos(); 
+    } catch (error: any) { 
+      alert("⚠️ Erro fatal no servidor: " + error.message); 
+    } finally { 
+      setSalvandoCartao(false); 
     }
   };
 
-  // 🔍 Tabela e Projeção filtradas pelo Cartão
   const parcelasFuturas = todosGastos.filter(g => {
     if (g.cartao_id !== cartaoSelecionado) return false;
     if (filtroParcelas === "fixos" && !g.estabelecimento.includes("(Fixo)")) return false;
-    return true;
+    return true; 
   }).sort((a, b) => new Date(a.data_compra).getTime() - new Date(b.data_compra).getTime());
 
   const parcelasExibidas = mostrarTodasParcelas ? parcelasFuturas : parcelasFuturas.slice(0, 4);
@@ -493,13 +486,13 @@ export default function Dashboard() {
   for (let i = 0; i < 6; i++) {
     const dataProjecao = new Date(hojeProjecao.getFullYear(), hojeProjecao.getMonth() + i, 1);
     const prefixoAnoMes = `${dataProjecao.getFullYear()}-${String(dataProjecao.getMonth() + 1).padStart(2, '0')}`;
-
+    
     labelsProjecaoCartao.push(mesesAbreviados[dataProjecao.getMonth()]);
-
+    
     const somaDoMes = todosGastos
       .filter(g => g.cartao_id === cartaoSelecionado && g.data_compra?.startsWith(prefixoAnoMes))
       .reduce((acc, g) => acc + (g.valor || 0), 0);
-
+      
     valoresProjecaoCartao.push(somaDoMes);
   }
 
@@ -696,7 +689,7 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-
+            
             <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm lg:col-span-2">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-base font-bold text-ink">Histórico de Gastos</h3>
@@ -809,14 +802,14 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ABA GESTÃO DE CARTÕES */}
+        {/* ABA GESTÃO DE CARTÕES - MOBILE RESPONSIVE */}
         {abaAtual === "cartao" && (
           <div className="space-y-6">
-
+            
             <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
               {cartoes.map(c => (
-                <button
-                  key={c.id}
+                <button 
+                  key={c.id} 
                   onClick={() => setCartaoSelecionado(c.id)}
                   className={`flex shrink-0 items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${cartaoSelecionado === c.id ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm' : 'border-edge bg-surface text-ink hover:bg-canvas'}`}
                 >
@@ -830,47 +823,48 @@ export default function Dashboard() {
             </div>
 
             {cartoes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 px-4 border-2 border-dashed border-edge rounded-3xl bg-surface/50">
-                <CreditCard className="w-16 h-16 text-ink-faint mb-4" />
-                <h3 className="text-xl font-bold text-ink mb-2">Nenhum cartão cadastrado</h3>
-                <p className="text-sm text-ink-muted text-center max-w-md mb-6">Cadastre seu primeiro cartão de crédito para acompanhar faturas, projetar limites e centralizar todas as suas compras parceladas.</p>
-                <button onClick={() => setModalCartaoAberto(true)} className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-3 rounded-xl font-bold transition-colors">
-                  + Cadastrar Cartão
-                </button>
-              </div>
+               <div className="flex flex-col items-center justify-center py-16 sm:py-20 px-4 border-2 border-dashed border-edge rounded-3xl bg-surface/50">
+                 <CreditCard className="w-12 h-12 sm:w-16 sm:h-16 text-ink-faint mb-4" />
+                 <h3 className="text-lg sm:text-xl font-bold text-ink mb-2 text-center">Nenhum cartão cadastrado</h3>
+                 <p className="text-xs sm:text-sm text-ink-muted text-center max-w-md mb-6">Cadastre seu primeiro cartão de crédito para acompanhar faturas, projetar limites e centralizar todas as suas compras parceladas.</p>
+                 <button onClick={() => setModalCartaoAberto(true)} className="bg-brand-600 hover:bg-brand-700 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-colors">
+                   + Cadastrar Cartão
+                 </button>
+               </div>
             ) : (
               <div className="grid gap-6 lg:grid-cols-2">
                 <div className="space-y-6">
-
-                  <div className="rounded-3xl p-7 text-white shadow-xl relative overflow-hidden transition-all duration-500" style={{ backgroundColor: cartaoAtivo?.cor || '#0e5c3e' }}>
-                    <div className="flex justify-between items-center mb-8">
-                      <div className="flex items-center gap-2 text-[11px] font-bold tracking-wider text-white/80 uppercase">
-                        <CreditCard className="w-4 h-4" /> Fatura Atual • {diasFaltamFechar === 0 ? "Fecha Hoje" : `Fecha em ${diasFaltamFechar} dias`}
+                  
+                  {/* CARD PRINCIPAL - RESPONSIVO */}
+                  <div className="rounded-3xl p-5 sm:p-7 text-white shadow-xl relative overflow-hidden transition-all duration-500" style={{ backgroundColor: cartaoAtivo?.cor || '#0e5c3e' }}>
+                    <div className="flex justify-between items-start mb-6 sm:mb-8">
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] font-bold tracking-wider text-white/80 uppercase">
+                        <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Fatura Atual • {diasFaltamFechar === 0 ? "Fecha Hoje" : `Fecha em ${diasFaltamFechar} dias`}
                       </div>
-                      <button onClick={deletarCartaoAtual} title="Excluir Cartão" className="text-white/60 hover:text-red-300 transition-colors p-2 rounded-full hover:bg-white/10">
-                        <Trash2 className="w-5 h-5" />
+                      <button onClick={deletarCartaoAtual} title="Excluir Cartão" className="text-white/60 hover:text-red-300 transition-colors p-1.5 sm:p-2 rounded-full hover:bg-white/10 -mt-1 sm:-mt-2 -mr-1 sm:-mr-2">
+                        <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                     </div>
-                    <div className="mb-10">
-                      <p className="text-sm text-white/80 mb-1">Total a Pagar</p>
-                      <h3 className="text-4xl sm:text-5xl font-extrabold tracking-tight">R$ {faturaAtualValor.toFixed(2)}</h3>
+                    <div className="mb-6 sm:mb-10">
+                      <p className="text-xs sm:text-sm text-white/80 mb-1">Total a Pagar</p>
+                      <h3 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight truncate">R$ {faturaAtualValor.toFixed(2)}</h3>
                     </div>
-                    <div className="flex justify-between items-end border-t border-white/20 pt-5">
+                    <div className="flex justify-between items-end border-t border-white/20 pt-4 sm:pt-5">
                       <div>
-                        <p className="text-xs text-white/80 mb-0.5">Limite Disponível</p>
-                        <p className="text-lg font-semibold text-white">R$ {limiteDisponivelCartao.toFixed(2)}</p>
+                        <p className="text-[10px] sm:text-xs text-white/80 mb-0.5">Limite Disponível</p>
+                        <p className="text-sm sm:text-lg font-semibold text-white truncate">R$ {limiteDisponivelCartao.toFixed(2)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-white/80 mb-0.5">Vencimento</p>
-                        <p className="text-lg font-semibold text-white">{rotuloVencimento}</p>
+                        <p className="text-[10px] sm:text-xs text-white/80 mb-0.5">Vencimento</p>
+                        <p className="text-sm sm:text-lg font-semibold text-white">{rotuloVencimento}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-surface rounded-2xl p-6 border border-edge shadow-sm">
+                  <div className="bg-surface rounded-2xl p-4 sm:p-6 border border-edge shadow-sm">
                     <div className="flex justify-between items-center mb-6">
-                      <h4 className="text-lg font-bold text-ink">Projeção 6 Meses</h4>
-                      <BarChart3 className="w-5 h-5 text-ink-faint" />
+                      <h4 className="text-base sm:text-lg font-bold text-ink">Projeção 6 Meses</h4>
+                      <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-ink-faint" />
                     </div>
                     <div className="h-40 w-full">
                       <Bar
@@ -886,7 +880,7 @@ export default function Dashboard() {
                         options={{
                           responsive: true, maintainAspectRatio: false,
                           plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (context) => `R$ ${(context.parsed.y || 0).toFixed(2)}` } } },
-                          scales: { x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, color: '#6b7280' } }, y: { display: false } }
+                          scales: { x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10 }, color: '#6b7280' } }, y: { display: false } }
                         }}
                       />
                     </div>
@@ -894,59 +888,63 @@ export default function Dashboard() {
                 </div>
 
                 <div className="space-y-6">
-
-                  <form onSubmit={lancarCompraCartao} className="bg-surface rounded-2xl p-6 border border-edge shadow-sm">
-                    <h4 className="text-base font-bold text-ink flex items-center gap-2 mb-4">
-                      <ShoppingCart className="w-5 h-5 text-brand-600" /> Lançar Compra
+                  
+                  {/* FORMULÁRIO DE LANÇAMENTO - RESPONSIVO */}
+                  <form onSubmit={lancarCompraCartao} className="bg-surface rounded-2xl p-4 sm:p-6 border border-edge shadow-sm">
+                    <h4 className="text-sm sm:text-base font-bold text-ink flex items-center gap-2 mb-4">
+                      <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600" /> Lançar Compra
                     </h4>
                     <div className="border-t border-edge pt-4 space-y-4">
                       <div>
                         <label className="block text-xs font-semibold text-ink mb-1.5">Estabelecimento</label>
-                        {/* 🌟 MUDANÇA DO PLACEHOLDER AQUI */}
                         <input required value={cartaoEstabelecimento} onChange={e => setCartaoEstabelecimento(e.target.value)} type="text" placeholder="✍️ Digite aqui o nome do local..." className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
                       </div>
-
-                      <div className="flex flex-wrap sm:flex-nowrap gap-3">
+                      
+                      {/* LINHA RESPONSIVA DE COLUNAS */}
+                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                         <div className="w-full sm:flex-1">
                           <label className="block text-xs font-semibold text-ink mb-1.5">Valor Total (R$)</label>
                           <input required value={cartaoValor} onChange={e => setCartaoValor(e.target.value)} type="number" step="0.01" placeholder="0,00" className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
                         </div>
-                        <div className="w-[30%] sm:w-24">
-                          <label className="block text-xs font-semibold text-ink mb-1.5">Parcelas</label>
-                          <input
-                            required
-                            disabled={isFixo}
-                            value={cartaoParcelas}
-                            onChange={e => setCartaoParcelas(e.target.value)}
-                            type="number"
-                            min="1"
-                            className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
-                          />
-                        </div>
-                        <div className="flex-1 sm:w-36">
-                          <label className="block text-xs font-semibold text-ink mb-1.5">Mês Inicial</label>
-                          <input
-                            required
-                            value={cartaoMesInicio}
-                            onChange={e => setCartaoMesInicio(e.target.value)}
-                            type="month"
-                            className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                          />
+                        
+                        <div className="flex gap-3 w-full sm:w-auto">
+                          <div className="flex-1 sm:w-24">
+                            <label className="block text-xs font-semibold text-ink mb-1.5">Parcelas</label>
+                            <input 
+                              required 
+                              disabled={isFixo}
+                              value={cartaoParcelas} 
+                              onChange={e => setCartaoParcelas(e.target.value)} 
+                              type="number" 
+                              min="1"
+                              className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50" 
+                            />
+                          </div>
+                          <div className="flex-1 sm:w-36">
+                            <label className="block text-xs font-semibold text-ink mb-1.5">Mês Inicial</label>
+                            <input 
+                              required 
+                              value={cartaoMesInicio} 
+                              onChange={e => setCartaoMesInicio(e.target.value)} 
+                              type="month" 
+                              className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" 
+                            />
+                          </div>
                         </div>
                       </div>
 
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-canvas p-3 rounded-xl border border-edge">
                         <label className="flex items-center gap-2 text-sm text-ink font-medium cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={isFixo}
-                            onChange={e => setIsFixo(e.target.checked)}
-                            className="w-4 h-4 rounded border-edge text-brand-600 focus:ring-brand-500"
+                          <input 
+                            type="checkbox" 
+                            checked={isFixo} 
+                            onChange={e => setIsFixo(e.target.checked)} 
+                            className="w-4 h-4 rounded border-edge text-brand-600 focus:ring-brand-500" 
                           />
                           Compra Fixa Mensal
                         </label>
                         {cartaoValor && (
-                          <span className="text-xs font-bold text-brand-700 bg-brand-50 px-2.5 py-1.5 rounded-lg border border-brand-100">
+                          <span className="text-xs font-bold text-brand-700 bg-brand-50 px-2.5 py-1.5 rounded-lg border border-brand-100 text-center">
                             Será cobrado: R$ {(isFixo ? parseFloat(cartaoValor) : (parseFloat(cartaoValor) / (parseInt(cartaoParcelas) || 1))).toFixed(2)} / mês
                           </span>
                         )}
@@ -958,46 +956,48 @@ export default function Dashboard() {
                     </div>
                   </form>
 
+                  {/* TABELA DE PRÓXIMAS PARCELAS - COM SCROLL HORIZONTAL SUAVE */}
                   <div className="bg-surface rounded-2xl p-0 border border-edge shadow-sm overflow-hidden">
-                    <div className="p-5 flex justify-between items-center border-b border-edge bg-canvas/30">
-                      <h4 className="text-base font-bold text-ink flex items-center gap-2">
-                        <Calendar className="w-5 h-5 text-ink-muted" /> Próximas Parcelas
+                    <div className="p-4 sm:p-5 flex justify-between items-center border-b border-edge bg-canvas/30">
+                      <h4 className="text-sm sm:text-base font-bold text-ink flex items-center gap-2">
+                        <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-ink-muted" /> Próximas Parcelas
                       </h4>
                       <div className="flex rounded-lg border border-brand-200 bg-brand-50 p-1">
-                        <button onClick={() => setFiltroParcelas("todos")} className={`px-3 py-1 text-xs font-bold rounded-md shadow-sm transition-colors ${filtroParcelas === "todos" ? "bg-white text-brand-700" : "text-brand-600/70 hover:text-brand-700"}`}>Todos</button>
-                        <button onClick={() => setFiltroParcelas("fixos")} className={`px-3 py-1 text-xs font-bold rounded-md shadow-sm transition-colors ${filtroParcelas === "fixos" ? "bg-white text-brand-700" : "text-brand-600/70 hover:text-brand-700"}`}>Apenas Fixos</button>
+                        <button onClick={() => setFiltroParcelas("todos")} className={`px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-bold rounded-md shadow-sm transition-colors ${filtroParcelas === "todos" ? "bg-white text-brand-700" : "text-brand-600/70 hover:text-brand-700"}`}>Todos</button>
+                        <button onClick={() => setFiltroParcelas("fixos")} className={`px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-bold rounded-md shadow-sm transition-colors ${filtroParcelas === "fixos" ? "bg-white text-brand-700" : "text-brand-600/70 hover:text-brand-700"}`}>Apenas Fixos</button>
                       </div>
                     </div>
+                    
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left text-sm">
-                        <thead className="bg-canvas border-b border-edge text-xs font-semibold text-ink-faint">
+                      <table className="w-full text-left text-sm whitespace-nowrap">
+                        <thead className="bg-canvas border-b border-edge text-[10px] sm:text-xs font-semibold text-ink-faint">
                           <tr>
-                            <th className="px-5 py-3">Estabelecimento</th>
-                            <th className="px-5 py-3 text-right">Valor</th>
-                            <th className="px-5 py-3 text-center">Mês</th>
-                            <th className="px-5 py-3 text-right">Ações</th>
+                            <th className="px-4 sm:px-5 py-3">Estabelecimento</th>
+                            <th className="px-4 sm:px-5 py-3 text-right">Valor</th>
+                            <th className="px-4 sm:px-5 py-3 text-center">Mês</th>
+                            <th className="px-4 sm:px-5 py-3 text-right">Ações</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-edge/50">
+                        <tbody className="divide-y divide-edge/50 text-xs sm:text-sm">
                           {parcelasExibidas.length > 0 ? (
                             parcelasExibidas.map((parcela) => {
                               const [ano, mes] = parcela.data_compra.split("-");
                               return (
                                 <tr key={parcela.id} className="hover:bg-canvas/50">
-                                  <td className="px-5 py-4 flex items-center gap-3 font-medium text-ink">
-                                    <div className="w-8 h-8 rounded-full bg-brand-50 text-brand-600 flex shrink-0 items-center justify-center"><ShoppingCart className="w-4 h-4" /></div>
-                                    <span className="truncate max-w-[100px] sm:max-w-[150px] block" title={parcela.estabelecimento}>{parcela.estabelecimento}</span>
+                                  <td className="px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-2.5 sm:gap-3 font-medium text-ink">
+                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-brand-50 text-brand-600 flex shrink-0 items-center justify-center"><ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4" /></div>
+                                    <span className="truncate max-w-[120px] sm:max-w-[150px] block" title={parcela.estabelecimento}>{parcela.estabelecimento}</span>
                                   </td>
-                                  <td className="px-5 py-4 text-right font-bold text-ink">R$ {parcela.valor.toFixed(2)}</td>
-                                  <td className="px-5 py-4 text-center text-xs text-ink-muted">{mes}/{ano.slice(-2)}</td>
-
-                                  <td className="px-5 py-4 text-right">
-                                    <div className="flex justify-end gap-1.5">
-                                      <button type="button" onClick={() => setGastoEditando(parcela)} className="rounded p-1.5 text-brand-600 transition-colors hover:bg-brand-50" title="Editar valor da parcela">
-                                        <Pencil className="h-4 w-4" />
+                                  <td className="px-4 sm:px-5 py-3 sm:py-4 text-right font-bold text-ink">R$ {parcela.valor.toFixed(2)}</td>
+                                  <td className="px-4 sm:px-5 py-3 sm:py-4 text-center text-ink-muted">{mes}/{ano.slice(-2)}</td>
+                                  
+                                  <td className="px-4 sm:px-5 py-3 sm:py-4 text-right">
+                                    <div className="flex justify-end gap-1 sm:gap-1.5">
+                                      <button type="button" onClick={() => setGastoEditando(parcela)} className="rounded p-1 sm:p-1.5 text-brand-600 transition-colors hover:bg-brand-50" title="Editar valor da parcela">
+                                        <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                       </button>
-                                      <button type="button" onClick={() => deletarGasto(parcela)} className="rounded p-1.5 text-red-500 transition-colors hover:bg-red-50" title="Excluir compra da fatura">
-                                        <Trash2 className="h-4 w-4" />
+                                      <button type="button" onClick={() => deletarGasto(parcela)} className="rounded p-1 sm:p-1.5 text-red-500 transition-colors hover:bg-red-50" title="Excluir compra da fatura">
+                                        <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                       </button>
                                     </div>
                                   </td>
@@ -1148,27 +1148,27 @@ export default function Dashboard() {
             <form onSubmit={cadastrarCartao} className="space-y-4 p-5">
               <div>
                 <label className="mb-1 block text-xs font-semibold text-ink">Nome do Cartão (Ex: Nubank, Itaú)</label>
-                <input required value={novoCartao.nome} onChange={e => setNovoCartao({ ...novoCartao, nome: e.target.value })} type="text" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
+                <input required value={novoCartao.nome} onChange={e => setNovoCartao({...novoCartao, nome: e.target.value})} type="text" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-semibold text-ink">Limite Total (R$)</label>
-                <input required value={novoCartao.limite} onChange={e => setNovoCartao({ ...novoCartao, limite: e.target.value })} type="number" step="0.01" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
+                <input required value={novoCartao.limite} onChange={e => setNovoCartao({...novoCartao, limite: e.target.value})} type="number" step="0.01" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-ink">Dia do Fechamento</label>
-                  <input required value={novoCartao.diaFechamento} onChange={e => setNovoCartao({ ...novoCartao, diaFechamento: e.target.value })} type="number" min="1" max="31" placeholder="Ex: 5" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
+                  <input required value={novoCartao.diaFechamento} onChange={e => setNovoCartao({...novoCartao, diaFechamento: e.target.value})} type="number" min="1" max="31" placeholder="Ex: 5" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-ink">Dia do Vencimento</label>
-                  <input required value={novoCartao.diaVencimento} onChange={e => setNovoCartao({ ...novoCartao, diaVencimento: e.target.value })} type="number" min="1" max="31" placeholder="Ex: 12" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
+                  <input required value={novoCartao.diaVencimento} onChange={e => setNovoCartao({...novoCartao, diaVencimento: e.target.value})} type="number" min="1" max="31" placeholder="Ex: 12" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
                 </div>
               </div>
               <div>
                 <label className="mb-2 block text-xs font-semibold text-ink">Cor do Cartão</label>
                 <div className="flex gap-3">
                   {['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#F43F5E', '#1F2937'].map(color => (
-                    <button key={color} type="button" onClick={() => setNovoCartao({ ...novoCartao, cor: color })} className={`w-8 h-8 rounded-full border-2 ${novoCartao.cor === color ? 'border-brand-600 scale-110' : 'border-transparent hover:scale-105'} transition-transform`} style={{ backgroundColor: color }} />
+                    <button key={color} type="button" onClick={() => setNovoCartao({...novoCartao, cor: color})} className={`w-8 h-8 rounded-full border-2 ${novoCartao.cor === color ? 'border-brand-600 scale-110' : 'border-transparent hover:scale-105'} transition-transform`} style={{ backgroundColor: color }} />
                   ))}
                 </div>
               </div>

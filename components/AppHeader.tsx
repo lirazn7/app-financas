@@ -1,3 +1,4 @@
+"use function";
 "use client";
 
 import Link from "next/link";
@@ -16,7 +17,7 @@ export default function AppHeader({ email, paginaAtiva, onLogout }: Props) {
   const linkInativo = "text-ink-muted hover:text-ink hover:bg-canvas";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-edge bg-surface/95 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-edge bg-surface/95 backdrop-blur pt-[env(safe-area-inset-top)]">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:h-16 sm:px-6">
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white sm:h-9 sm:w-9">

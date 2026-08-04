@@ -496,9 +496,6 @@ export default function Dashboard() {
     valoresProjecaoCartao.push(somaDoMes);
   }
 
-  // ----------------------------------------------------
-  // RENDERIZAÇÃO
-  // ----------------------------------------------------
   if (autenticado === null || loading) {
     return <div className="flex min-h-screen items-center justify-center bg-canvas"><Loader2 className="h-8 w-8 animate-spin text-brand-600" /></div>;
   }
@@ -551,12 +548,14 @@ export default function Dashboard() {
     }],
   };
 
+  // 🌟 CORREÇÃO 1: overflow-x-hidden na raiz para matar a rolagem horizontal
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className="min-h-screen bg-canvas overflow-x-hidden w-full">
       <AppHeader email={usuarioAtual?.email} paginaAtiva="dashboard" onLogout={fazerLogout} />
 
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-10">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      {/* 🌟 CORREÇÃO 2: w-full e max-w-full */}
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:py-10">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between w-full">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-ink lg:text-3xl">Painel Financeiro</h1>
             <p className="mt-1 text-sm text-ink-muted">Acompanhe seus gastos, orçamentos e histórico.</p>
@@ -570,45 +569,46 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-brand-700 to-brand-900 p-5 text-white shadow-md sm:col-span-2 lg:col-span-1">
-            <div>
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 w-full">
+          <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-brand-700 to-brand-900 p-5 text-white shadow-md sm:col-span-2 lg:col-span-1 min-w-0">
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-wider text-brand-200">Total no período</p>
-              <h2 className="mt-1 text-3xl font-extrabold tracking-tight">R$ {totalGasto.toFixed(2)}</h2>
+              <h2 className="mt-1 text-3xl font-extrabold tracking-tight truncate">R$ {totalGasto.toFixed(2)}</h2>
             </div>
-            <div className="rounded-xl bg-white/15 p-3"><TrendingUp className="h-6 w-6" /></div>
+            <div className="rounded-xl bg-white/15 p-3 shrink-0"><TrendingUp className="h-6 w-6" /></div>
           </div>
-          <div className="hidden items-center justify-between rounded-2xl border border-edge bg-surface p-5 shadow-sm sm:flex">
-            <div>
+          <div className="hidden items-center justify-between rounded-2xl border border-edge bg-surface p-5 shadow-sm sm:flex min-w-0">
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-wider text-ink-faint">Registros</p>
-              <h2 className="mt-1 text-3xl font-extrabold tracking-tight text-ink">{gastosFiltrados.length}</h2>
+              <h2 className="mt-1 text-3xl font-extrabold tracking-tight text-ink truncate">{gastosFiltrados.length}</h2>
             </div>
-            <div className="rounded-xl bg-canvas p-3 text-ink-muted"><TableIcon className="h-6 w-6" /></div>
+            <div className="rounded-xl bg-canvas p-3 text-ink-muted shrink-0"><TableIcon className="h-6 w-6" /></div>
           </div>
-          <div className="hidden items-center justify-between rounded-2xl border border-edge bg-surface p-5 shadow-sm sm:flex">
-            <div>
+          <div className="hidden items-center justify-between rounded-2xl border border-edge bg-surface p-5 shadow-sm sm:flex min-w-0">
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-wider text-ink-faint">Maior categoria</p>
               <h2 className="mt-1 truncate text-2xl font-extrabold tracking-tight text-ink">{Object.keys(dadosCategorias)[0] || "—"}</h2>
             </div>
-            <div className="rounded-xl bg-canvas p-3 text-ink-muted"><Wallet className="h-6 w-6" /></div>
+            <div className="rounded-xl bg-canvas p-3 text-ink-muted shrink-0"><Wallet className="h-6 w-6" /></div>
           </div>
         </div>
 
-        <div className="mb-6 flex gap-1 rounded-xl border border-edge bg-surface p-1.5 shadow-sm sm:max-w-[34rem]">
-          <button onClick={() => setAbaAtual("graficos")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'graficos' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><LayoutDashboard className="h-4 w-4" /> Gráficos</button>
-          <button onClick={() => setAbaAtual("orcamento")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'orcamento' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><Wallet className="h-4 w-4" /> Orçamento</button>
-          <button onClick={() => setAbaAtual("cartao")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'cartao' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><CreditCard className="h-4 w-4" /> Cartões</button>
-          <button onClick={() => setAbaAtual("tabela")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'tabela' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><TableIcon className="h-4 w-4" /> Histórico</button>
+        {/* 🌟 CORREÇÃO 3: Menu superior com rolagem e sem quebrar o grid */}
+        <div className="mb-6 flex w-full gap-1 overflow-x-auto scrollbar-hide rounded-xl border border-edge bg-surface p-1.5 shadow-sm sm:max-w-[34rem]">
+          <button onClick={() => setAbaAtual("graficos")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'graficos' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><LayoutDashboard className="h-4 w-4 shrink-0" /> Gráficos</button>
+          <button onClick={() => setAbaAtual("orcamento")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'orcamento' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><Wallet className="h-4 w-4 shrink-0" /> Orçamento</button>
+          <button onClick={() => setAbaAtual("cartao")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'cartao' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><CreditCard className="h-4 w-4 shrink-0" /> Cartões</button>
+          <button onClick={() => setAbaAtual("tabela")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'tabela' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><TableIcon className="h-4 w-4 shrink-0" /> Histórico</button>
         </div>
 
         {/* ABA GRÁFICOS */}
         {abaAtual === "graficos" && (
-          <div className="grid gap-5 lg:grid-cols-2">
-            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm">
+          <div className="grid gap-5 lg:grid-cols-2 w-full">
+            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm min-w-0">
               <h3 className="mb-4 text-base font-bold text-ink">Divisão por Categorias</h3>
               {Object.keys(dadosCategorias).length > 0 ? (
                 <>
-                  <div className="flex h-48 w-full items-center justify-center lg:h-56"><Pie data={dataPizza} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }} /></div>
+                  <div className="flex h-48 w-full items-center justify-center lg:h-56 relative min-w-0"><Pie data={dataPizza} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }} /></div>
                   <details className="group mt-5 overflow-hidden rounded-xl border border-edge bg-canvas">
                     <summary className="flex cursor-pointer list-none items-center justify-between p-3.5 text-sm font-semibold text-ink transition-colors hover:bg-edge/40 [&::-webkit-details-marker]:hidden">
                       Ver detalhamento e % <ChevronDown className="h-4 w-4 text-ink-faint transition-transform duration-300 group-open:rotate-180" />
@@ -618,9 +618,9 @@ export default function Dashboard() {
                         const cor = CORES_CATEGORIAS[index % CORES_CATEGORIAS.length];
                         const porcentagem = totalGasto > 0 ? ((valor / totalGasto) * 100).toFixed(1) : "0.0";
                         return (
-                          <div key={nome} className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2.5"><span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: cor }}></span><span className="max-w-[140px] truncate font-medium text-ink">{nome}</span></div>
-                            <div className="flex items-center gap-3"><span className="font-semibold text-ink">R$ {valor.toFixed(2)}</span><span className="min-w-[3.5rem] rounded bg-canvas px-1.5 py-0.5 text-center text-xs font-medium text-ink-muted">{porcentagem}%</span></div>
+                          <div key={nome} className="flex items-center justify-between text-sm min-w-0">
+                            <div className="flex items-center gap-2.5 min-w-0"><span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: cor }}></span><span className="max-w-[140px] truncate font-medium text-ink">{nome}</span></div>
+                            <div className="flex items-center gap-3 shrink-0"><span className="font-semibold text-ink">R$ {valor.toFixed(2)}</span><span className="min-w-[3.5rem] rounded bg-canvas px-1.5 py-0.5 text-center text-xs font-medium text-ink-muted">{porcentagem}%</span></div>
                           </div>
                         );
                       })}
@@ -630,11 +630,11 @@ export default function Dashboard() {
               ) : (<p className="py-12 text-center text-xs text-ink-faint">Sem gastos neste período.</p>)}
             </div>
 
-            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm">
+            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm min-w-0">
               <h3 className="mb-4 flex items-center gap-2 text-base font-bold text-ink"><CreditCard className="h-5 w-5 text-brand-600" /> Formas de Pagamento</h3>
               {Object.keys(dadosPagamentos).length > 0 ? (
                 <>
-                  <div className="flex h-48 w-full items-center justify-center lg:h-56"><Doughnut data={dataPagamentos} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }} /></div>
+                  <div className="flex h-48 w-full items-center justify-center lg:h-56 relative min-w-0"><Doughnut data={dataPagamentos} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }} /></div>
                   <details className="group mt-5 overflow-hidden rounded-xl border border-edge bg-canvas">
                     <summary className="flex cursor-pointer list-none items-center justify-between p-3.5 text-sm font-semibold text-ink transition-colors hover:bg-edge/40 [&::-webkit-details-marker]:hidden">
                       Ver detalhamento e % <ChevronDown className="h-4 w-4 text-ink-faint transition-transform duration-300 group-open:rotate-180" />
@@ -644,9 +644,9 @@ export default function Dashboard() {
                         const cor = CORES_PAGAMENTOS[index % CORES_PAGAMENTOS.length];
                         const porcentagem = totalGasto > 0 ? ((valor / totalGasto) * 100).toFixed(1) : "0.0";
                         return (
-                          <div key={nome} className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2.5"><span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: cor }}></span><span className="max-w-[140px] truncate font-medium text-ink">{nome}</span></div>
-                            <div className="flex items-center gap-3"><span className="font-semibold text-ink">R$ {valor.toFixed(2)}</span><span className="min-w-[3.5rem] rounded bg-canvas px-1.5 py-0.5 text-center text-xs font-medium text-ink-muted">{porcentagem}%</span></div>
+                          <div key={nome} className="flex items-center justify-between text-sm min-w-0">
+                            <div className="flex items-center gap-2.5 min-w-0"><span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: cor }}></span><span className="max-w-[140px] truncate font-medium text-ink">{nome}</span></div>
+                            <div className="flex items-center gap-3 shrink-0"><span className="font-semibold text-ink">R$ {valor.toFixed(2)}</span><span className="min-w-[3.5rem] rounded bg-canvas px-1.5 py-0.5 text-center text-xs font-medium text-ink-muted">{porcentagem}%</span></div>
                           </div>
                         );
                       })}
@@ -656,12 +656,12 @@ export default function Dashboard() {
               ) : (<p className="py-12 text-center text-xs text-ink-faint">Sem dados de pagamento.</p>)}
             </div>
 
-            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm lg:col-span-2">
-              <div className="flex justify-between items-center mb-4">
+            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm lg:col-span-2 min-w-0">
+              <div className="flex justify-between items-center mb-4 min-w-0">
                 <h3 className="text-base font-bold text-ink flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-brand-600" /> Tendência de Pagamentos
                 </h3>
-                <div className="relative">
+                <div className="relative shrink-0 ml-2">
                   <button onClick={() => setDropdownPagamentosAberto(!dropdownPagamentosAberto)} className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider bg-canvas border border-edge rounded-lg px-3 py-2 text-ink-muted hover:bg-edge/50 transition-colors">
                     Filtrar Meios <ChevronDown className={`w-3 h-3 transition-transform ${dropdownPagamentosAberto ? 'rotate-180' : ''}`} />
                   </button>
@@ -684,16 +684,16 @@ export default function Dashboard() {
                   <p className="text-xs text-ink-muted font-medium text-center leading-relaxed">Nenhum método selecionado.<br /><span className="text-brand-600 font-semibold cursor-pointer hover:underline" onClick={() => setDropdownPagamentosAberto(true)}>Abra o filtro</span> e escolha os pagamentos.</p>
                 </div>
               ) : (
-                <div className="w-full h-52 animate-in fade-in duration-500 lg:h-64">
+                <div className="relative w-full h-52 animate-in fade-in duration-500 lg:h-64 min-w-0">
                   <Line data={dataLinhaPagamentos} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 12, usePointStyle: true, font: { size: 11, family: 'sans-serif' } } } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 10 } }, grid: { color: '#eef1f4' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} />
                 </div>
               )}
             </div>
             
-            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm lg:col-span-2">
-              <div className="mb-4 flex items-center justify-between">
+            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm lg:col-span-2 min-w-0">
+              <div className="mb-4 flex items-center justify-between min-w-0">
                 <h3 className="text-base font-bold text-ink">Histórico de Gastos</h3>
-                <div className="flex rounded-lg border border-edge bg-canvas p-1">
+                <div className="flex rounded-lg border border-edge bg-canvas p-1 shrink-0 ml-2">
                   <button onClick={() => setVisaoHistorico("diario")} className={`rounded-md px-3 py-1 text-[11px] font-semibold transition-colors ${visaoHistorico === "diario" ? "bg-surface text-brand-700 shadow-sm" : "text-ink-muted hover:text-ink"}`}>Diário</button>
                   <button onClick={() => setVisaoHistorico("mensal")} className={`rounded-md px-3 py-1 text-[11px] font-semibold transition-colors ${visaoHistorico === "mensal" ? "bg-surface text-brand-700 shadow-sm" : "text-ink-muted hover:text-ink"}`}>Mensal</button>
                 </div>
@@ -701,11 +701,11 @@ export default function Dashboard() {
 
               {visaoHistorico === "diario" ? (
                 Object.keys(dadosDias).length > 0 ? (
-                  <div className="h-52 w-full lg:h-72"><Bar data={dataBarras} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#eef1f4' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} /></div>
+                  <div className="relative h-52 w-full lg:h-72 min-w-0"><Bar data={dataBarras} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#eef1f4' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} /></div>
                 ) : (<p className="py-12 text-center text-xs text-ink-faint">Sem histórico neste período.</p>)
               ) : (
                 Object.keys(dadosMeses).length > 0 ? (
-                  <div className="h-52 w-full lg:h-72"><Line data={dataLinha} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#eef1f4' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} /></div>
+                  <div className="relative h-52 w-full lg:h-72 min-w-0"><Line data={dataLinha} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#eef1f4' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} /></div>
                 ) : (<p className="py-12 text-center text-xs text-ink-faint">Sem histórico mensal.</p>)
               )}
             </div>
@@ -714,19 +714,19 @@ export default function Dashboard() {
 
         {/* ABA ORÇAMENTO */}
         {abaAtual === "orcamento" && (
-          <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm sm:p-6">
-            <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm sm:p-6 w-full min-w-0">
+            <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full">
               <div>
                 <h3 className="text-base font-bold text-ink">Limites de Gasto</h3>
                 <p className="mt-0.5 text-xs text-ink-muted sm:text-sm">Controle seu teto de gastos por categoria.</p>
               </div>
-              <div className="flex rounded-lg border border-edge bg-canvas p-1">
+              <div className="flex rounded-lg border border-edge bg-canvas p-1 self-start sm:self-auto">
                 <button onClick={() => setTipoOrcamento("mensal")} className={`rounded-md px-4 py-1.5 text-xs font-semibold transition-colors ${tipoOrcamento === "mensal" ? "bg-surface text-brand-700 shadow-sm" : "text-ink-muted hover:text-ink"}`}>Mensal</button>
                 <button onClick={() => setTipoOrcamento("anual")} className={`rounded-md px-4 py-1.5 text-xs font-semibold transition-colors ${tipoOrcamento === "anual" ? "bg-surface text-brand-700 shadow-sm" : "text-ink-muted hover:text-ink"}`}>Anual</button>
               </div>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-4 lg:grid-cols-2 w-full">
               {CATEGORIAS.map((cat) => {
                 const multiplicador = tipoOrcamento === "anual" ? 12 : 1;
                 const jaGasto = (dadosCategorias[cat] || 0) * (tipoOrcamento === "anual" ? 1 : 1);
@@ -739,19 +739,19 @@ export default function Dashboard() {
                 if (porcentagemUso >= 90) corDaBarra = "bg-red-500";
 
                 return (
-                  <div key={cat} className="space-y-2 rounded-xl border border-edge bg-canvas p-4">
-                    <div className="flex items-center justify-between text-sm font-medium">
-                      <span className="text-ink">{cat}</span>
+                  <div key={cat} className="space-y-2 rounded-xl border border-edge bg-canvas p-4 min-w-0">
+                    <div className="flex items-center justify-between text-sm font-medium w-full min-w-0">
+                      <span className="text-ink truncate max-w-[40%] sm:max-w-[50%]">{cat}</span>
 
                       {categoriaEditandoLimite === cat ? (
-                        <form onSubmit={(e) => salvarLimiteCategoria(e, cat)} className="flex items-center gap-1.5">
+                        <form onSubmit={(e) => salvarLimiteCategoria(e, cat)} className="flex items-center gap-1.5 shrink-0">
                           <input
                             required
                             type="number"
                             placeholder="R$"
                             value={valorNovoLimite}
                             onChange={(e) => setValorNovoLimite(e.target.value)}
-                            className="w-20 rounded-md border border-edge bg-surface px-1.5 py-1 text-xs focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                            className="w-16 sm:w-20 rounded-md border border-edge bg-surface px-1.5 py-1 text-xs focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
                           />
                           <button type="submit" disabled={salvandoLimite} className="rounded-md bg-brand-600 p-1.5 text-white hover:bg-brand-700">
                             {salvandoLimite ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
@@ -761,13 +761,13 @@ export default function Dashboard() {
                           </button>
 
                           {limiteBase && (
-                            <button type="button" onClick={() => deletarLimiteCategoria(cat)} className="ml-2 rounded-md bg-red-100 p-1.5 text-red-600 hover:bg-red-200">
+                            <button type="button" onClick={() => deletarLimiteCategoria(cat)} className="ml-1 sm:ml-2 rounded-md bg-red-100 p-1.5 text-red-600 hover:bg-red-200">
                               <Trash2 className="h-3 w-3" />
                             </button>
                           )}
                         </form>
                       ) : (
-                        <div className="flex items-center gap-1.5 text-xs">
+                        <div className="flex items-center gap-1.5 text-xs shrink-0">
                           {limiteDefinido ? (
                             <>
                               <span className="font-bold text-ink">Limite: R$ {limiteDefinido.toFixed(0)}</span>
@@ -785,13 +785,13 @@ export default function Dashboard() {
                     </div>
 
                     {limiteDefinido && (
-                      <div className="space-y-1">
+                      <div className="space-y-1 w-full">
                         <div className="h-2.5 w-full overflow-hidden rounded-full bg-edge">
                           <div className={`h-2.5 rounded-full ${corDaBarra} transition-all duration-500`} style={{ width: `${Math.min(porcentagemUso, 100)}%` }}></div>
                         </div>
                         <div className="flex justify-between text-[11px] font-medium text-ink-muted">
-                          <span>Gasto: R$ {jaGasto.toFixed(2)}</span>
-                          <span className={porcentagemUso >= 100 ? "font-bold text-red-600" : ""}>{porcentagemUso.toFixed(1)}%</span>
+                          <span className="truncate">Gasto: R$ {jaGasto.toFixed(2)}</span>
+                          <span className={porcentagemUso >= 100 ? "font-bold text-red-600 shrink-0" : "shrink-0"}>{porcentagemUso.toFixed(1)}%</span>
                         </div>
                       </div>
                     )}
@@ -802,11 +802,12 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ABA GESTÃO DE CARTÕES - MOBILE RESPONSIVE */}
+        {/* ABA GESTÃO DE CARTÕES - MOBILE RESPONSIVE BLINDADO */}
         {abaAtual === "cartao" && (
-          <div className="space-y-6">
+          <div className="space-y-6 w-full min-w-0">
             
-            <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            {/* 🌟 CORREÇÃO 4: overflow e min-w-0 forçado para não empurrar a tela */}
+            <div className="flex w-full items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
               {cartoes.map(c => (
                 <button 
                   key={c.id} 
@@ -823,7 +824,7 @@ export default function Dashboard() {
             </div>
 
             {cartoes.length === 0 ? (
-               <div className="flex flex-col items-center justify-center py-16 sm:py-20 px-4 border-2 border-dashed border-edge rounded-3xl bg-surface/50">
+               <div className="flex flex-col items-center justify-center py-16 sm:py-20 px-4 border-2 border-dashed border-edge rounded-3xl bg-surface/50 w-full min-w-0">
                  <CreditCard className="w-12 h-12 sm:w-16 sm:h-16 text-ink-faint mb-4" />
                  <h3 className="text-lg sm:text-xl font-bold text-ink mb-2 text-center">Nenhum cartão cadastrado</h3>
                  <p className="text-xs sm:text-sm text-ink-muted text-center max-w-md mb-6">Cadastre seu primeiro cartão de crédito para acompanhar faturas, projetar limites e centralizar todas as suas compras parceladas.</p>
@@ -832,41 +833,41 @@ export default function Dashboard() {
                  </button>
                </div>
             ) : (
-              <div className="grid gap-6 lg:grid-cols-2">
-                <div className="space-y-6">
+              <div className="grid w-full gap-6 lg:grid-cols-2">
+                <div className="space-y-6 w-full min-w-0">
                   
-                  {/* CARD PRINCIPAL - RESPONSIVO */}
-                  <div className="rounded-3xl p-5 sm:p-7 text-white shadow-xl relative overflow-hidden transition-all duration-500" style={{ backgroundColor: cartaoAtivo?.cor || '#0e5c3e' }}>
-                    <div className="flex justify-between items-start mb-6 sm:mb-8">
-                      <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] font-bold tracking-wider text-white/80 uppercase">
-                        <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Fatura Atual • {diasFaltamFechar === 0 ? "Fecha Hoje" : `Fecha em ${diasFaltamFechar} dias`}
+                  {/* CARD PRINCIPAL - RESPONSIVO E SEGURO */}
+                  <div className="rounded-3xl p-5 sm:p-7 text-white shadow-xl relative overflow-hidden transition-all duration-500 w-full min-w-0" style={{ backgroundColor: cartaoAtivo?.cor || '#0e5c3e' }}>
+                    <div className="flex justify-between items-start mb-6 sm:mb-8 min-w-0 w-full">
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] font-bold tracking-wider text-white/80 uppercase truncate">
+                        <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" /> Fatura Atual • {diasFaltamFechar === 0 ? "Fecha Hoje" : `Fecha em ${diasFaltamFechar} dias`}
                       </div>
-                      <button onClick={deletarCartaoAtual} title="Excluir Cartão" className="text-white/60 hover:text-red-300 transition-colors p-1.5 sm:p-2 rounded-full hover:bg-white/10 -mt-1 sm:-mt-2 -mr-1 sm:-mr-2">
+                      <button onClick={deletarCartaoAtual} title="Excluir Cartão" className="text-white/60 hover:text-red-300 transition-colors p-1.5 sm:p-2 rounded-full hover:bg-white/10 -mt-1 sm:-mt-2 -mr-1 sm:-mr-2 shrink-0 ml-2">
                         <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                     </div>
-                    <div className="mb-6 sm:mb-10">
+                    <div className="mb-6 sm:mb-10 w-full min-w-0">
                       <p className="text-xs sm:text-sm text-white/80 mb-1">Total a Pagar</p>
-                      <h3 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight truncate">R$ {faturaAtualValor.toFixed(2)}</h3>
+                      <h3 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight truncate w-full min-w-0">R$ {faturaAtualValor.toFixed(2)}</h3>
                     </div>
-                    <div className="flex justify-between items-end border-t border-white/20 pt-4 sm:pt-5">
-                      <div>
+                    <div className="flex justify-between items-end border-t border-white/20 pt-4 sm:pt-5 min-w-0 w-full">
+                      <div className="min-w-0 flex-1">
                         <p className="text-[10px] sm:text-xs text-white/80 mb-0.5">Limite Disponível</p>
-                        <p className="text-sm sm:text-lg font-semibold text-white truncate">R$ {limiteDisponivelCartao.toFixed(2)}</p>
+                        <p className="text-sm sm:text-lg font-semibold text-white truncate w-full pr-2">R$ {limiteDisponivelCartao.toFixed(2)}</p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0">
                         <p className="text-[10px] sm:text-xs text-white/80 mb-0.5">Vencimento</p>
                         <p className="text-sm sm:text-lg font-semibold text-white">{rotuloVencimento}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-surface rounded-2xl p-4 sm:p-6 border border-edge shadow-sm">
+                  <div className="bg-surface rounded-2xl p-4 sm:p-6 border border-edge shadow-sm w-full min-w-0">
                     <div className="flex justify-between items-center mb-6">
                       <h4 className="text-base sm:text-lg font-bold text-ink">Projeção 6 Meses</h4>
-                      <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-ink-faint" />
+                      <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-ink-faint shrink-0" />
                     </div>
-                    <div className="h-40 w-full">
+                    <div className="relative h-40 w-full min-w-0">
                       <Bar
                         data={{
                           labels: labelsProjecaoCartao,
@@ -887,28 +888,27 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-6 w-full min-w-0">
                   
-                  {/* FORMULÁRIO DE LANÇAMENTO - RESPONSIVO */}
-                  <form onSubmit={lancarCompraCartao} className="bg-surface rounded-2xl p-4 sm:p-6 border border-edge shadow-sm">
+                  {/* FORMULÁRIO DE LANÇAMENTO - RESPONSIVO E SEGURO */}
+                  <form onSubmit={lancarCompraCartao} className="bg-surface rounded-2xl p-4 sm:p-6 border border-edge shadow-sm w-full min-w-0">
                     <h4 className="text-sm sm:text-base font-bold text-ink flex items-center gap-2 mb-4">
-                      <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600" /> Lançar Compra
+                      <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600 shrink-0" /> Lançar Compra
                     </h4>
-                    <div className="border-t border-edge pt-4 space-y-4">
-                      <div>
+                    <div className="border-t border-edge pt-4 space-y-4 w-full">
+                      <div className="w-full">
                         <label className="block text-xs font-semibold text-ink mb-1.5">Estabelecimento</label>
                         <input required value={cartaoEstabelecimento} onChange={e => setCartaoEstabelecimento(e.target.value)} type="text" placeholder="✍️ Digite aqui o nome do local..." className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
                       </div>
                       
-                      {/* LINHA RESPONSIVA DE COLUNAS */}
-                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                        <div className="w-full sm:flex-1">
+                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full">
+                        <div className="w-full sm:flex-1 min-w-0">
                           <label className="block text-xs font-semibold text-ink mb-1.5">Valor Total (R$)</label>
                           <input required value={cartaoValor} onChange={e => setCartaoValor(e.target.value)} type="number" step="0.01" placeholder="0,00" className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
                         </div>
                         
-                        <div className="flex gap-3 w-full sm:w-auto">
-                          <div className="flex-1 sm:w-24">
+                        <div className="flex gap-3 w-full sm:w-auto min-w-0">
+                          <div className="flex-1 sm:w-24 min-w-0">
                             <label className="block text-xs font-semibold text-ink mb-1.5">Parcelas</label>
                             <input 
                               required 
@@ -920,7 +920,7 @@ export default function Dashboard() {
                               className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50" 
                             />
                           </div>
-                          <div className="flex-1 sm:w-36">
+                          <div className="flex-1 sm:w-36 min-w-0">
                             <label className="block text-xs font-semibold text-ink mb-1.5">Mês Inicial</label>
                             <input 
                               required 
@@ -933,8 +933,8 @@ export default function Dashboard() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-canvas p-3 rounded-xl border border-edge">
-                        <label className="flex items-center gap-2 text-sm text-ink font-medium cursor-pointer">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-canvas p-3 rounded-xl border border-edge w-full">
+                        <label className="flex items-center gap-2 text-sm text-ink font-medium cursor-pointer shrink-0">
                           <input 
                             type="checkbox" 
                             checked={isFixo} 
@@ -944,7 +944,7 @@ export default function Dashboard() {
                           Compra Fixa Mensal
                         </label>
                         {cartaoValor && (
-                          <span className="text-xs font-bold text-brand-700 bg-brand-50 px-2.5 py-1.5 rounded-lg border border-brand-100 text-center">
+                          <span className="text-xs font-bold text-brand-700 bg-brand-50 px-2.5 py-1.5 rounded-lg border border-brand-100 text-center truncate">
                             Será cobrado: R$ {(isFixo ? parseFloat(cartaoValor) : (parseFloat(cartaoValor) / (parseInt(cartaoParcelas) || 1))).toFixed(2)} / mês
                           </span>
                         )}
@@ -956,19 +956,19 @@ export default function Dashboard() {
                     </div>
                   </form>
 
-                  {/* TABELA DE PRÓXIMAS PARCELAS - COM SCROLL HORIZONTAL SUAVE */}
-                  <div className="bg-surface rounded-2xl p-0 border border-edge shadow-sm overflow-hidden">
-                    <div className="p-4 sm:p-5 flex justify-between items-center border-b border-edge bg-canvas/30">
-                      <h4 className="text-sm sm:text-base font-bold text-ink flex items-center gap-2">
+                  {/* TABELA DE PRÓXIMAS PARCELAS */}
+                  <div className="bg-surface rounded-2xl p-0 border border-edge shadow-sm overflow-hidden w-full min-w-0">
+                    <div className="p-4 sm:p-5 flex justify-between items-center border-b border-edge bg-canvas/30 w-full min-w-0">
+                      <h4 className="text-sm sm:text-base font-bold text-ink flex items-center gap-2 shrink-0">
                         <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-ink-muted" /> Próximas Parcelas
                       </h4>
-                      <div className="flex rounded-lg border border-brand-200 bg-brand-50 p-1">
+                      <div className="flex rounded-lg border border-brand-200 bg-brand-50 p-1 shrink-0 ml-2">
                         <button onClick={() => setFiltroParcelas("todos")} className={`px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-bold rounded-md shadow-sm transition-colors ${filtroParcelas === "todos" ? "bg-white text-brand-700" : "text-brand-600/70 hover:text-brand-700"}`}>Todos</button>
-                        <button onClick={() => setFiltroParcelas("fixos")} className={`px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-bold rounded-md shadow-sm transition-colors ${filtroParcelas === "fixos" ? "bg-white text-brand-700" : "text-brand-600/70 hover:text-brand-700"}`}>Apenas Fixos</button>
+                        <button onClick={() => setFiltroParcelas("fixos")} className={`px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-bold rounded-md shadow-sm transition-colors ${filtroParcelas === "fixos" ? "bg-white text-brand-700" : "text-brand-600/70 hover:text-brand-700"}`}>Fixos</button>
                       </div>
                     </div>
                     
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto w-full">
                       <table className="w-full text-left text-sm whitespace-nowrap">
                         <thead className="bg-canvas border-b border-edge text-[10px] sm:text-xs font-semibold text-ink-faint">
                           <tr>
@@ -1011,7 +1011,7 @@ export default function Dashboard() {
                       </table>
                     </div>
                     {parcelasFuturas.length > 4 && (
-                      <div className="bg-canvas border-t border-edge p-3 text-center">
+                      <div className="bg-canvas border-t border-edge p-3 text-center w-full">
                         <button onClick={() => setMostrarTodasParcelas(!mostrarTodasParcelas)} className="text-xs font-bold text-brand-700 hover:underline">
                           {mostrarTodasParcelas ? "Ocultar parcelas" : `Ver todas as ${parcelasFuturas.length} parcelas futuras`}
                         </button>
@@ -1026,10 +1026,10 @@ export default function Dashboard() {
 
         {/* ABA HISTÓRICO */}
         {abaAtual === "tabela" && (
-          <div className="space-y-4">
-            <div className="space-y-3 rounded-2xl border border-edge bg-surface p-4 shadow-sm sm:p-5">
-              <h3 className="flex items-center gap-2 text-sm font-bold text-ink"><Filter className="h-4 w-4 text-brand-600" /> Filtros da Tabela</h3>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="space-y-4 w-full min-w-0">
+            <div className="space-y-3 rounded-2xl border border-edge bg-surface p-4 shadow-sm sm:p-5 w-full">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-ink"><Filter className="h-4 w-4 text-brand-600 shrink-0" /> Filtros da Tabela</h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 w-full">
                 <input type="date" value={filtroTabelaData} onChange={e => setFiltroTabelaData(e.target.value)} className={inputFiltro} />
                 <select value={filtroTabelaCategoria} onChange={e => setFiltroTabelaCategoria(e.target.value)} className={`${inputFiltro} truncate`}>
                   <option value="todas">Todas Categorias</option>
@@ -1046,28 +1046,28 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="mb-8 overflow-hidden rounded-2xl border border-edge bg-surface shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-ink-muted">
+            <div className="mb-8 overflow-hidden rounded-2xl border border-edge bg-surface shadow-sm w-full">
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left text-sm text-ink-muted whitespace-nowrap">
                   <thead className="border-b border-edge bg-canvas text-xs uppercase text-ink-faint">
                     <tr>
-                      <th className="whitespace-nowrap px-4 py-3">Data</th>
-                      <th className="whitespace-nowrap px-4 py-3">Estabelecimento</th>
-                      <th className="whitespace-nowrap px-4 py-3">Detalhes</th>
-                      <th className="whitespace-nowrap px-4 py-3 text-right">Valor e Ações</th>
+                      <th className="px-4 py-3">Data</th>
+                      <th className="px-4 py-3">Estabelecimento</th>
+                      <th className="px-4 py-3">Detalhes</th>
+                      <th className="px-4 py-3 text-right">Valor e Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-edge/60">
                     {tabelaFiltrada.length > 0 ? (
                       tabelaFiltrada.map(g => (
                         <tr key={g.id} className="transition-colors hover:bg-canvas/60">
-                          <td className="whitespace-nowrap px-4 py-3.5 font-medium text-ink">{g.data_compra ? g.data_compra.split('-').reverse().join('/') : 'S/ Data'}</td>
-                          <td className="max-w-[120px] truncate px-4 py-3.5 sm:max-w-[240px]" title={g.estabelecimento}>{g.estabelecimento}</td>
+                          <td className="px-4 py-3.5 font-medium text-ink">{g.data_compra ? g.data_compra.split('-').reverse().join('/') : 'S/ Data'}</td>
+                          <td className="max-w-[150px] truncate px-4 py-3.5 sm:max-w-[240px]" title={g.estabelecimento}>{g.estabelecimento}</td>
                           <td className="space-y-1.5 px-4 py-3.5 sm:space-y-0 sm:space-x-1.5">
                             <span className="inline-block max-w-max truncate rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700">{g.categoria}</span>
                             <span className="inline-block max-w-max truncate rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">{g.forma_pagamento}</span>
                           </td>
-                          <td className="whitespace-nowrap px-4 py-3.5 text-right">
+                          <td className="px-4 py-3.5 text-right">
                             <span className="mb-1.5 block font-bold text-ink">R$ {g.valor.toFixed(2)}</span>
                             <div className="flex justify-end gap-1.5">
                               <button onClick={() => setGastoEditando(g)} className="rounded p-1.5 text-brand-600 transition-colors hover:bg-brand-50"><Pencil className="h-4 w-4" /></button>

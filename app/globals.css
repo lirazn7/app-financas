@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/*
+ * 🌟 Tailwind v4 ignora o darkMode:"class" do tailwind.config.ts.
+ * Este @custom-variant faz o `dark:` responder à classe .dark que o
+ * next-themes coloca no <html>, em vez do prefers-color-scheme do sistema.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;

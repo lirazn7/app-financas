@@ -758,15 +758,15 @@ export default function Dashboard() {
                             onChange={(e) => setValorNovoLimite(e.target.value)}
                             className="w-16 sm:w-20 rounded-md border border-edge dark:border-slate-700 bg-surface dark:bg-slate-900 px-1.5 py-1 text-xs text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
                           />
-                          <button type="submit" disabled={salvandoLimite} aria-label={`Salvar limite de ${cat}`} className="rounded-md bg-brand-600 p-1.5 text-white hover:bg-brand-700 dark:hover:bg-brand-500">
+                          <button type="submit" disabled={salvandoLimite} aria-label={`Salvar limite de ${cat}`} className="min-h-9 min-w-9 inline-flex items-center justify-center rounded-md bg-brand-600 text-white hover:bg-brand-700 dark:hover:bg-brand-500">
                             {salvandoLimite ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                           </button>
-                          <button type="button" onClick={() => setCategoriaEditandoLimite(null)} aria-label="Cancelar edição do limite" className="rounded-md bg-edge dark:bg-slate-800 p-1.5 text-ink-muted dark:text-slate-400 hover:bg-edge/70 dark:hover:bg-slate-700">
+                          <button type="button" onClick={() => setCategoriaEditandoLimite(null)} aria-label="Cancelar edição do limite" className="min-h-9 min-w-9 inline-flex items-center justify-center rounded-md bg-edge dark:bg-slate-800 text-ink-muted dark:text-slate-400 hover:bg-edge/70 dark:hover:bg-slate-700">
                             <X className="h-3 w-3" />
                           </button>
 
                           {limiteBase && (
-                            <button type="button" onClick={() => deletarLimiteCategoria(cat)} aria-label={`Remover orçamento de ${cat}`} className="ml-1 sm:ml-2 rounded-md bg-red-100 dark:bg-red-950/40 p-1.5 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-950/60">
+                            <button type="button" onClick={() => deletarLimiteCategoria(cat)} aria-label={`Remover orçamento de ${cat}`} className="ml-1 sm:ml-2 min-h-9 min-w-9 inline-flex items-center justify-center rounded-md bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-950/60">
                               <Trash2 className="h-3 w-3" />
                             </button>
                           )}
@@ -776,7 +776,7 @@ export default function Dashboard() {
                           {limiteDefinido ? (
                             <>
                               <span className="font-bold text-ink dark:text-white">Limite: R$ {limiteDefinido.toFixed(0)}</span>
-                              <button onClick={() => { setCategoriaEditandoLimite(cat); setValorNovoLimite(limiteBase?.toString() || ""); }} aria-label={`Editar limite de ${cat}`} className="text-ink-faint dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400">
+                              <button onClick={() => { setCategoriaEditandoLimite(cat); setValorNovoLimite(limiteBase?.toString() || ""); }} aria-label={`Editar limite de ${cat}`} className="min-h-9 min-w-9 inline-flex items-center justify-center text-ink-faint dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400">
                                 <Pencil className="h-3 w-3" />
                               </button>
                             </>
@@ -846,7 +846,7 @@ export default function Dashboard() {
                       <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] font-bold tracking-wider text-white/80 uppercase truncate">
                         <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" /> Fatura Atual • {diasFaltamFechar === 0 ? "Fecha Hoje" : `Fecha em ${diasFaltamFechar} dias`}
                       </div>
-                      <button onClick={deletarCartaoAtual} title="Excluir Cartão" aria-label="Excluir Cartão" className="text-white/60 hover:text-red-300 transition-colors p-1.5 sm:p-2 rounded-full hover:bg-white/10 -mt-1 sm:-mt-2 -mr-1 sm:-mr-2 shrink-0 ml-2">
+                      <button onClick={deletarCartaoAtual} title="Excluir Cartão" aria-label="Excluir Cartão" className="text-white/60 hover:text-red-300 transition-colors min-h-11 min-w-11 inline-flex items-center justify-center rounded-full hover:bg-white/10 -mt-1 sm:-mt-2 -mr-1 sm:-mr-2 shrink-0 ml-2">
                         <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                     </div>
@@ -997,10 +997,10 @@ export default function Dashboard() {
                                   
                                   <td className="px-4 sm:px-5 py-3 sm:py-4 text-right">
                                     <div className="flex justify-end gap-1 sm:gap-1.5">
-                                      <button type="button" onClick={() => setGastoEditando(parcela)} className="rounded p-1 sm:p-1.5 text-brand-600 dark:text-brand-400 transition-colors hover:bg-brand-50 dark:hover:bg-brand-900/30" title="Editar valor da parcela" aria-label="Editar valor da parcela">
+                                      <button type="button" onClick={() => setGastoEditando(parcela)} className="min-h-9 min-w-9 inline-flex items-center justify-center rounded text-brand-600 dark:text-brand-400 transition-colors hover:bg-brand-50 dark:hover:bg-brand-900/30" title="Editar valor da parcela" aria-label="Editar valor da parcela">
                                         <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                       </button>
-                                      <button type="button" onClick={() => deletarGasto(parcela)} className="rounded p-1 sm:p-1.5 text-red-500 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-900/30" title="Excluir compra da fatura" aria-label="Excluir compra da fatura">
+                                      <button type="button" onClick={() => deletarGasto(parcela)} className="min-h-9 min-w-9 inline-flex items-center justify-center rounded text-red-500 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-900/30" title="Excluir compra da fatura" aria-label="Excluir compra da fatura">
                                         <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                       </button>
                                     </div>
@@ -1074,8 +1074,8 @@ export default function Dashboard() {
                           <td className="px-4 py-3.5 text-right">
                             <span className="mb-1.5 block font-bold text-ink dark:text-slate-100">R$ {g.valor.toFixed(2)}</span>
                             <div className="flex justify-end gap-1.5">
-                              <button onClick={() => setGastoEditando(g)} title="Editar gasto" aria-label="Editar gasto" className="rounded p-1.5 text-brand-600 dark:text-brand-400 transition-colors hover:bg-brand-50 dark:hover:bg-brand-900/30"><Pencil className="h-4 w-4" /></button>
-                              <button onClick={() => deletarGasto(g)} title="Excluir gasto" aria-label="Excluir gasto" className="rounded p-1.5 text-red-500 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-900/30"><Trash2 className="h-4 w-4" /></button>
+                              <button onClick={() => setGastoEditando(g)} title="Editar gasto" aria-label="Editar gasto" className="min-h-9 min-w-9 inline-flex items-center justify-center rounded text-brand-600 dark:text-brand-400 transition-colors hover:bg-brand-50 dark:hover:bg-brand-900/30"><Pencil className="h-4 w-4" /></button>
+                              <button onClick={() => deletarGasto(g)} title="Excluir gasto" aria-label="Excluir gasto" className="min-h-9 min-w-9 inline-flex items-center justify-center rounded text-red-500 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-900/30"><Trash2 className="h-4 w-4" /></button>
                             </div>
                           </td>
                         </tr>
@@ -1098,7 +1098,7 @@ export default function Dashboard() {
           <div className="w-full max-w-md overflow-hidden rounded-2xl bg-surface dark:bg-slate-900 shadow-xl border border-edge dark:border-slate-800">
             <div className="flex items-center justify-between border-b border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950 p-4">
               <h3 className="text-lg font-bold text-ink dark:text-white">Editar Gasto</h3>
-              <button onClick={() => setGastoEditando(null)} aria-label="Fechar" className="rounded-full bg-edge dark:bg-slate-800 p-1.5 text-ink-muted dark:text-slate-400 transition-colors hover:bg-edge/70 dark:hover:bg-slate-700 hover:text-ink dark:hover:text-white"><X className="h-5 w-5" /></button>
+              <button onClick={() => setGastoEditando(null)} aria-label="Fechar" className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-full bg-edge dark:bg-slate-800 text-ink-muted dark:text-slate-400 transition-colors hover:bg-edge/70 dark:hover:bg-slate-700 hover:text-ink dark:hover:text-white"><X className="h-5 w-5" /></button>
             </div>
             <form onSubmit={salvarEdicao} className="space-y-4 p-5">
               <div>
@@ -1147,7 +1147,7 @@ export default function Dashboard() {
           <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-surface dark:bg-slate-900 shadow-xl border border-edge dark:border-slate-800">
             <div className="flex items-center justify-between border-b border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950 p-4">
               <h3 className="text-lg font-bold text-ink dark:text-white flex items-center gap-2"><CreditCard className="w-5 h-5 text-brand-600 dark:text-brand-500" /> Cadastrar Cartão</h3>
-              <button onClick={() => setModalCartaoAberto(false)} aria-label="Fechar" className="rounded-full bg-edge dark:bg-slate-800 p-1.5 text-ink-muted dark:text-slate-400 hover:bg-edge/70 dark:hover:bg-slate-700 hover:text-ink dark:hover:text-white transition-colors"><X className="h-5 w-5" /></button>
+              <button onClick={() => setModalCartaoAberto(false)} aria-label="Fechar" className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-full bg-edge dark:bg-slate-800 text-ink-muted dark:text-slate-400 hover:bg-edge/70 dark:hover:bg-slate-700 hover:text-ink dark:hover:text-white transition-colors"><X className="h-5 w-5" /></button>
             </div>
             <form onSubmit={cadastrarCartao} className="space-y-4 p-5">
               <div>
@@ -1172,7 +1172,9 @@ export default function Dashboard() {
                 <label className="mb-2 block text-xs font-semibold text-ink dark:text-slate-300">Cor do Cartão</label>
                 <div className="flex gap-3">
                   {['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#F43F5E', '#1F2937'].map(color => (
-                    <button key={color} type="button" onClick={() => setNovoCartao({...novoCartao, cor: color})} aria-label={`Selecionar cor ${color}`} aria-pressed={novoCartao.cor === color} className={`w-8 h-8 rounded-full border-2 ${novoCartao.cor === color ? 'border-brand-600 dark:border-brand-400 scale-110' : 'border-transparent hover:scale-105'} transition-transform`} style={{ backgroundColor: color }} />
+                    <button key={color} type="button" onClick={() => setNovoCartao({...novoCartao, cor: color})} aria-label={`Selecionar cor ${color}`} aria-pressed={novoCartao.cor === color} className={`min-h-11 min-w-11 rounded-full border-2 ${novoCartao.cor === color ? 'border-brand-600 dark:border-brand-400 scale-110' : 'border-transparent hover:scale-105'} transition-transform flex items-center justify-center`}>
+                      <span className="w-8 h-8 rounded-full" style={{ backgroundColor: color }} />
+                    </button>
                   ))}
                 </div>
               </div>

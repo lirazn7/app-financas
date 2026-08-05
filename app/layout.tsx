@@ -44,10 +44,11 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col font-sans">
         {/* 🌟 ENVELOPANDO OS CHILDREN COM O PROVIDER */}
+        {/* 🌟 Light mode é o tema padrão (main); dark só quando o usuário ativar */}
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="light"
+          enableSystem={false}
           disableTransitionOnChange
         >
           {children}

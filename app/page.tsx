@@ -1,47 +1,191 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Camera, Upload, Loader2, CheckCircle, Save, Image as ImageIcon, Pencil, ScanLine, Sparkles, ShieldCheck, PieChart } from "lucide-react";
-import { supabase } from "../lib/supabase";
-import { CATEGORIAS, FORMAS_PAGAMENTO, ROTULOS_CATEGORIAS } from "../lib/constantes";
-import AppHeader from "../components/AppHeader";
-import AuthCard from "../components/AuthCard";
+export const dynamic = "force-dynamic";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { Bar, Pie, Doughnut, Line } from "react-chartjs-2";
+import { Loader2, TrendingUp, Calendar, CreditCard, ChevronDown, Table as TableIcon, LayoutDashboard, Filter, Trash2, Pencil, X, Save, Wallet, ShoppingCart, BarChart3, Plus } from "lucide-react";
+import { useTheme } from "next-themes";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+} from "chart.js";
+import { CATEGORIAS, ROTULOS_CATEGORIAS, FORMAS_PAGAMENTO, CORES_CATEGORIAS, CORES_PAGAMENTOS } from "@/lib/constantes";
+import AppHeader from "@/components/AppHeader";
+import AuthCard from "@/components/AuthCard";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
+
+export default function Dashboard() {
+  // 🌟 Hook de Tema para adaptar os gráficos
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
+  // Configurações de cores dinâmicas para os gráficos (Grid e Textos)
+  const chartGridColor = isDark ? "#334155" : "#eef1f4";
+  const chartTextColor = isDark ? "#94a3b8" : "#6b7280";
+
+  // --- ESTADOS DA ABA CARTÃO ---
+  const [cartoes, setCartoes] = useState<any[]>([]);
+  const [cartaoSelecionado, setCartaoSelecionado] = useState<number | null>(null);
+  const [modalCartaoAberto, setModalCartaoAberto] = useState(false);
+  const [novoCartao, setNovoCartao] = useState({ nome: "", limite: "", diaVencimento: "", diaFechamento: "", cor: "#0e5c3e" });
+  
+  const [cartaoEstabelecimento, setCartaoEstabelecimento] = useState("");
+  const [cartaoValor, setCartaoValor] = useState("");
+  const [cartaoParcelas, setCartaoParcelas] = useState("1");
+  const [isFixo, setIsFixo] = useState(false);
+  const [salvandoCartao, setSalvandoCartao] = useState(false);
+  const [mostrarTodasParcelas, setMostrarTodasParcelas] = useState(false);
+  const [filtroParcelas, setFiltroParcelas] = useState<"todos" | "fixos">("todos");
+  
+  const hojeLocal = new Date();
+  const mesAtualDefault = `${hojeLocal.getFullYear()}-${String(hojeLocal.getMonth() + 1).padStart(2, '0')}`;
+  const [cartaoMesInicio, setCartaoMesInicio] = useState(mesAtualDefault);
+
+  // --- ESTADOS DE AUTENTICAÇÃO E DADOS GERAIS ---
   const [autenticado, setAutenticado] = useState<boolean | null>(null);
   const [usuarioAtual, setUsuarioAtual] = useState<any>(null);
-
-  // Campos de login e cadastro
   const [emailInput, setEmailInput] = useState("");
   const [senhaInput, setSenhaInput] = useState("");
   const [modoCadastro, setModoCadastro] = useState(false);
 
-  const [modoManual, setModoManual] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [todosGastos, setTodosGastos] = useState<any[]>([]);
+  const [gastosFiltrados, setGastosFiltrados] = useState<any[]>([]);
+  const [mesesDisponiveis, setMesesDisponiveis] = useState<string[]>([]);
+  const [mesSelecionado, setMesSelecionado] = useState<string>("todos");
 
-  const [imagem, setImagem] = useState<File | null>(null);
-  const [contexto, setContexto] = useState("");
+  const [abaAtual, setAbaAtual] = useState<"graficos" | "orcamento" | "tabela" | "cartao">("graficos");
+  const [pagamentosSelecionados, setPagamentosSelecionados] = useState<string[]>([]);
+  const [dropdownPagamentosAberto, setDropdownPagamentosAberto] = useState(false);
+  const [visaoHistorico, setVisaoHistorico] = useState<"diario" | "mensal">("diario");
 
-  const [formManual, setFormManual] = useState({
-    estabelecimento: "",
-    valor: "",
-    data_compra: new Date().toISOString().split("T")[0],
-    categoria: "Alimentação",
-    forma_pagamento: "Débito"
-  });
+  const [filtroTabelaData, setFiltroTabelaData] = useState("");
+  const [filtroTabelaCategoria, setFiltroTabelaCategoria] = useState("todas");
+  const [filtroTabelaPagamento, setFiltroTabelaPagamento] = useState("todas");
 
-  const [loading, setLoading] = useState(false);
-  const [salvando, setSalvando] = useState(false);
-  const [resultado, setResultado] = useState<any>(null);
+  const [gastoEditando, setGastoEditando] = useState<any>(null);
+  const [loadingEdit, setLoadingEdit] = useState(false);
 
-  // Escuta e gerencia a sessão de login ativa do usuário
+  const [limites, setLimites] = useState<{ [key: string]: number }>({});
+  const [categoriaEditandoLimite, setCategoriaEditandoLimite] = useState<string | null>(null);
+  const [valorNovoLimite, setValorNovoLimite] = useState("");
+  const [salvandoLimite, setSalvandoLimite] = useState(false);
+  const [tipoOrcamento, setTipoOrcamento] = useState<"mensal" | "anual">("mensal");
+
+  const [totalGasto, setTotalGasto] = useState(0);
+  const [dadosCategorias, setDadosCategorias] = useState<{ [key: string]: number }>({});
+  const [dadosDias, setDadosDias] = useState<{ [key: string]: number }>({});
+  const [dadosMeses, setDadosMeses] = useState<{ [key: string]: number }>({});
+  const [dadosPagamentos, setDadosPagamentos] = useState<{ [key: string]: number }>({});
+
+  async function buscarGastos() {
+    try {
+      const { data, error } = await supabase.from("gastos").select("*").order("data_compra", { ascending: false });
+      if (error) throw error;
+      if (data) {
+        setTodosGastos(data);
+        const meses = Array.from(new Set(data.map((item) => item.data_compra ? item.data_compra.substring(0, 7) : null).filter(Boolean))) as string[];
+        setMesesDisponiveis(meses);
+        setGastosFiltrados(data);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function buscarCartoes() {
+    try {
+      const { data, error } = await supabase.from("cartoes").select("*").order("id", { ascending: true });
+      if (error) throw error;
+      if (data) {
+        setCartoes(data);
+        if (data.length > 0 && cartaoSelecionado === null) {
+          setCartaoSelecionado(data[0].id);
+        }
+      }
+    } catch (error: any) {
+      console.error("Erro ao carregar cartões:", error.message);
+    }
+  }
+
+  async function buscarLimites() {
+    try {
+      const { data, error } = await supabase.from("limites_categorias").select("categoria, valor_limite");
+      if (data) {
+        const mapaLimites = data.reduce((acc: any, item: any) => {
+          acc[item.categoria] = item.valor_limite;
+          return acc;
+        }, {});
+        setLimites(mapaLimites);
+      }
+    } catch (error: any) {}
+  }
+
+  const cadastrarCartao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase.from("cartoes").insert({
+        user_id: usuarioAtual.id,
+        nome: novoCartao.nome,
+        limite: parseFloat(novoCartao.limite),
+        dia_vencimento: parseInt(novoCartao.diaVencimento),
+        dia_fechamento: parseInt(novoCartao.diaFechamento),
+        cor: novoCartao.cor
+      });
+      if (error) throw error;
+      
+      alert("Cartão adicionado com sucesso!");
+      setModalCartaoAberto(false);
+      setNovoCartao({ nome: "", limite: "", diaVencimento: "", diaFechamento: "", cor: "#0e5c3e" });
+      buscarCartoes();
+    } catch (error: any) {
+      alert("Erro ao salvar cartão: " + error.message);
+    }
+  };
+
+  const deletarCartaoAtual = async () => {
+    if (!cartaoSelecionado) return;
+    if (!window.confirm("ATENÇÃO: Excluir este cartão apagará permanentemente todo o histórico de compras e faturas atreladas a ele. Deseja realmente excluir?")) return;
+
+    try {
+      const { error } = await supabase.from("cartoes").delete().eq("id", cartaoSelecionado);
+      if (error) throw error;
+      
+      alert("Cartão e faturas excluídos com sucesso!");
+      const novaLista = cartoes.filter(c => c.id !== cartaoSelecionado);
+      setCartoes(novaLista);
+      setCartaoSelecionado(novaLista.length > 0 ? novaLista[0].id : null);
+      buscarGastos(); 
+    } catch (error: any) {
+      alert("Erro ao excluir cartão: " + error.message);
+    }
+  };
+
   useEffect(() => {
     const verificarSessao = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setUsuarioAtual(session.user);
         setAutenticado(true);
+        buscarGastos();
+        buscarLimites();
+        buscarCartoes();
       } else {
         setAutenticado(false);
+        setLoading(false);
       }
     };
     verificarSessao();
@@ -50,9 +194,15 @@ export default function Home() {
       if (session?.user) {
         setUsuarioAtual(session.user);
         setAutenticado(true);
+        buscarGastos();
+        buscarLimites();
+        buscarCartoes();
       } else {
         setUsuarioAtual(null);
         setAutenticado(false);
+        setTodosGastos([]);
+        setLimites({});
+        setCartoes([]);
       }
     });
 
@@ -66,14 +216,14 @@ export default function Home() {
       if (modoCadastro) {
         const { error } = await supabase.auth.signUp({ email: emailInput, password: senhaInput });
         if (error) throw error;
-        alert("Conta criada com sucesso! Você já pode fazer login.");
+        alert("Conta criada com sucesso! Você já pode entrar.");
         setModoCadastro(false);
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: emailInput, password: senhaInput });
         if (error) throw error;
       }
     } catch (error: any) {
-      alert("⚠️ Erro na autenticação: " + error.message);
+      alert("⚠️ Erro: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -83,393 +233,956 @@ export default function Home() {
     await supabase.auth.signOut();
   };
 
-  const comprimirImagem = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      if (file.size === 0) {
-        return reject(new Error("A câmera retornou uma imagem vazia. Tente afastar um pouco a câmera ou usar uma foto da galeria."));
+  useEffect(() => {
+    if (!autenticado) return;
+    let filtrados = todosGastos;
+    if (mesSelecionado !== "todos") {
+      filtrados = todosGastos.filter((item) => item.data_compra && item.data_compra.startsWith(mesSelecionado));
+    }
+    setGastosFiltrados(filtrados);
+
+    const total = filtrados.reduce((acc, item) => acc + (item.valor || 0), 0);
+    setTotalGasto(total);
+
+    const categories: { [key: string]: number } = {};
+    const days: { [key: string]: number } = {};
+    const monthsRaw: { [key: string]: number } = {};
+    const payments: { [key: string]: number } = {};
+
+    filtrados.forEach((item) => {
+      const cat = item.categoria || "Outros";
+      categories[cat] = (categories[cat] || 0) + (item.valor || 0);
+
+      const pag = item.forma_pagamento || "Não identificado";
+      payments[pag] = (payments[pag] || 0) + (item.valor || 0);
+
+      if (item.data_compra) {
+        const [ano, mes, dia] = item.data_compra.split("-");
+        days[`${dia}/${mes}`] = (days[`${dia}/${mes}`] || 0) + (item.valor || 0);
+        const anoMes = item.data_compra.substring(0, 7);
+        monthsRaw[anoMes] = (monthsRaw[anoMes] || 0) + (item.valor || 0);
       }
-
-      const img = new Image();
-      const objectUrl = URL.createObjectURL(file);
-      img.src = objectUrl;
-
-      img.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-
-        const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 1200;
-        const MAX_HEIGHT = 1200;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-
-        if (!ctx) {
-          return reject(new Error("O navegador não suportou o processamento da imagem."));
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
-        const base64String = dataUrl.split(",")[1];
-
-        if (!base64String || base64String === "") {
-          reject(new Error("Falha na conversão da imagem no dispositivo."));
-        } else {
-          resolve(base64String);
-        }
-      };
-
-      img.onerror = () => reject(new Error("Não foi possível carregar a imagem no navegador. Verifique se não é um formato HEIC não suportado."));
     });
+
+    const mesesOrdenados = Object.keys(monthsRaw).sort();
+    const monthsProcessed: { [key: string]: number } = {};
+    const nomesDosMeses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+    mesesOrdenados.forEach(key => {
+      const [ano, mes] = key.split("-");
+      const labelFormatada = `${nomesDosMeses[parseInt(mes) - 1]}/${ano.slice(-2)}`;
+      monthsProcessed[labelFormatada] = monthsRaw[key];
+    });
+
+    const categoriasOrdenadas = Object.fromEntries(Object.entries(categories).sort(([, a], [, b]) => b - a));
+    const pagamentosOrdenados = Object.fromEntries(Object.entries(payments).sort(([, a], [, b]) => b - a));
+
+    setDadosCategorias(categoriasOrdenadas);
+    setDadosPagamentos(pagamentosOrdenados);
+    setDadosDias(days);
+    setDadosMeses(monthsProcessed);
+  }, [mesSelecionado, todosGastos, autenticado]);
+
+  const salvarLimiteCategoria = async (e: React.FormEvent, categoria: string) => {
+    e.preventDefault();
+    if (!valorNovoLimite || parseFloat(valorNovoLimite) <= 0) return alert("Insira um valor válido!");
+
+    setSalvandoLimite(true);
+    try {
+      const valorNumerico = parseFloat(valorNovoLimite);
+      const { error } = await supabase.from("limites_categorias").upsert({
+        user_id: usuarioAtual.id,
+        categoria: categoria,
+        valor_limite: valorNumerico
+      }, { onConflict: "user_id,categoria" });
+      if (error) throw error;
+      setLimites(prev => ({ ...prev, [categoria]: valorNumerico }));
+      setCategoriaEditandoLimite(null);
+      setValorNovoLimite("");
+    } catch (error: any) {} finally { setSalvandoLimite(false); }
   };
 
-  const handleSubmitIA = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!imagem) return alert("Por favor, selecione uma imagem primeiro!");
-
-    setLoading(true);
+  const deletarLimiteCategoria = async (categoria: string) => {
+    if (!window.confirm(`Remover o orçamento de ${categoria}?`)) return;
     try {
-      const base64 = await comprimirImagem(imagem);
+      const { error } = await supabase.from("limites_categorias").delete().eq("user_id", usuarioAtual.id).eq("categoria", categoria);
+      if (error) throw error;
+      const novosLimites = { ...limites };
+      delete novosLimites[categoria];
+      setLimites(novosLimites);
+      setCategoriaEditandoLimite(null);
+    } catch (error: any) {}
+  };
 
-      const res = await fetch("/api/ler-nota", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imagemBase64: base64, contexto }),
-      });
+  const salvarEdicao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoadingEdit(true);
+    try {
+      const valorNumerico = parseFloat(gastoEditando.valor);
+      const { error } = await supabase.from("gastos").update({
+        estabelecimento: gastoEditando.estabelecimento,
+        valor: valorNumerico,
+        data_compra: gastoEditando.data_compra,
+        categoria: gastoEditando.categoria,
+        forma_pagamento: gastoEditando.forma_pagamento
+      }).eq("id", gastoEditando.id);
+      if (error) throw error;
+      const novaLista = todosGastos.map(g => g.id === gastoEditando.id ? { ...g, ...gastoEditando, valor: valorNumerico } : g);
+      setTodosGastos(novaLista);
+      setGastoEditando(null);
+    } catch (error: any) {} finally { setLoadingEdit(false); }
+  };
 
-      const dados = await res.json();
+  const deletarGasto = async (gasto: any) => {
+    const nomeBase = gasto.estabelecimento.replace(/\s*\(\d+\/\d+\)$|\s*\(Fixo\)$/, "").trim();
+    
+    const parcelasRelacionadas = todosGastos.filter(g => 
+      g.cartao_id === gasto.cartao_id && 
+      g.estabelecimento.replace(/\s*\(\d+\/\d+\)$|\s*\(Fixo\)$/, "").trim() === nomeBase
+    );
 
-      if (res.ok) {
-        setResultado(dados);
+    let idsParaDeletar = [gasto.id];
+
+    if (parcelasRelacionadas.length > 1) {
+      const confirmacao = window.confirm(
+        `Esta compra possui ${parcelasRelacionadas.length} parcelas registradas.\n\n` +
+        `• Clique em [OK] para APAGAR A COMPRA INTEIRA (${parcelasRelacionadas.length} parcelas).\n` +
+        `• Clique em [Cancelar] para apagar APENAS esta parcela.`
+      );
+
+      if (confirmacao) {
+        idsParaDeletar = parcelasRelacionadas.map(p => p.id);
       } else {
-        alert("Erro na IA: " + (dados.error || "Erro desconhecido"));
+        if (!window.confirm("Deseja apagar APENAS esta parcela selecionada?")) return;
       }
-    } catch (error: any) {
-      alert("⚠️ Erro no celular: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmitManual = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formManual.estabelecimento || !formManual.valor) {
-      return alert("Preencha pelo menos o estabelecimento e o valor!");
+    } else {
+      if (!window.confirm("Deseja realmente excluir esta compra da fatura?")) return;
     }
 
-    setResultado({
-      estabelecimento: formManual.estabelecimento,
-      valor: parseFloat(formManual.valor),
-      data_compra: formManual.data_compra,
-      categoria: formManual.categoria,
-      forma_pagamento: formManual.forma_pagamento
-    });
-  };
-
-  const lidarComMudancaManual = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormManual(prev => ({ ...prev, [name]: value }));
-  };
-
-  const salvarNoBanco = async () => {
-    if (!usuarioAtual) return alert("Erro: Usuário não identificado para salvar o registro.");
-
-    setSalvando(true);
     try {
-      const dataValida = resultado.data_compra && resultado.data_compra !== "Não disponível"
-        ? resultado.data_compra
-        : null;
-
-      // Injeta obrigatoriamente o UID do usuário ativo no user_id da tabela
-      const { error } = await supabase
-        .from('gastos')
-        .insert([
-          {
-            estabelecimento: resultado.estabelecimento,
-            valor: parseFloat(resultado.valor),
-            data_compra: dataValida,
-            categoria: resultado.categoria,
-            forma_pagamento: resultado.forma_pagamento,
-            contexto: contexto || "Inserção Manual",
-            user_id: usuarioAtual.id
-          }
-        ]);
-
+      const { error } = await supabase.from("gastos").delete().in("id", idsParaDeletar);
       if (error) throw error;
 
-      alert("🎉 Gasto salvo com sucesso!");
-
-      setResultado(null);
-      setImagem(null);
-      setContexto("");
-      setFormManual({
-        estabelecimento: "",
-        valor: "",
-        data_compra: new Date().toISOString().split("T")[0],
-        categoria: "Alimentação",
-        forma_pagamento: "Débito"
-      });
-
+      setTodosGastos(prev => prev.filter(g => !idsParaDeletar.includes(g.id)));
+      alert(idsParaDeletar.length > 1 ? "Todas as parcelas da compra foram apagadas!" : "Parcela excluída com sucesso!");
     } catch (error: any) {
-      alert("Erro ao salvar no banco: " + error.message);
-    } finally {
-      setSalvando(false);
+      alert("Erro ao excluir: " + error.message);
     }
   };
 
-  const inputClasses = "w-full rounded-xl border border-edge bg-surface px-4 py-3 text-sm text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25";
-  const labelClasses = "mb-1.5 block text-sm font-medium text-ink";
+  const formatarMesAno = (mesAno: string) => {
+    const [ano, mes] = mesAno.split("-");
+    const mesesNome = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    return `${mesesNome[parseInt(mes) - 1]} / ${ano}`;
+  };
 
-  if (autenticado === null) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-canvas">
-        <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
-      </div>
-    );
+  // 💳 LÓGICA MESTRE DOS CARTÕES DE CRÉDITO
+  const cartaoAtivo = cartoes.find(c => c.id === cartaoSelecionado);
+  
+  let faturaAtualValor = 0;
+  let limiteDisponivelCartao = 0;
+  let diasFaltamFechar = 0;
+  let rotuloVencimento = "";
+  let mesFechamentoRef = "";
+
+  if (cartaoAtivo) {
+    const hoje = new Date();
+    const diaHoje = hoje.getDate();
+    let mesFatura = hoje.getMonth();
+    let anoFatura = hoje.getFullYear();
+
+    if (diaHoje > cartaoAtivo.dia_fechamento) {
+      mesFatura++;
+      if (mesFatura > 11) {
+        mesFatura = 0;
+        anoFatura++;
+      }
+    }
+
+    const mesStr = String(mesFatura + 1).padStart(2, '0');
+    mesFechamentoRef = `${anoFatura}-${mesStr}`; 
+
+    faturaAtualValor = todosGastos
+      .filter(g => g.cartao_id === cartaoAtivo.id && g.data_compra?.startsWith(mesFechamentoRef))
+      .reduce((acc, g) => acc + (g.valor || 0), 0);
+
+    limiteDisponivelCartao = cartaoAtivo.limite - faturaAtualValor;
+
+    if (diaHoje <= cartaoAtivo.dia_fechamento) {
+      diasFaltamFechar = cartaoAtivo.dia_fechamento - diaHoje;
+    } else {
+      const diasNesteMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+      diasFaltamFechar = (diasNesteMes - diaHoje) + cartaoAtivo.dia_fechamento;
+    }
+
+    const mesesNomesAbrev = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    rotuloVencimento = `${cartaoAtivo.dia_vencimento} de ${mesesNomesAbrev[mesFatura]}`;
   }
 
+  const lancarCompraCartao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const estabelecimentoDigitado = cartaoEstabelecimento.trim();
+    
+    if (!cartaoSelecionado) return alert("❌ Selecione ou cadastre um cartão primeiro (ex: clique no botão azul do cartão).");
+    if (!estabelecimentoDigitado) return alert("❌ O campo 'Estabelecimento' está VAZIO! \n\nAquele texto 'Ex: Mercado Livre' é apenas uma sugestão apagada. Você precisa digitar o nome do local.");
+    if (!cartaoValor || parseFloat(cartaoValor) <= 0) return alert("❌ Preencha um 'Valor Total' válido maior que zero.");
+    if (!isFixo && (!cartaoParcelas || parseInt(cartaoParcelas) <= 0)) return alert("❌ Preencha a quantidade de 'Parcelas'.");
+    if (!cartaoMesInicio) return alert("❌ O campo 'Mês Inicial' precisa estar preenchido.");
+
+    setSalvandoCartao(true);
+    try {
+      const valorTotal = parseFloat(cartaoValor);
+      const qtdParcelas = isFixo ? 1 : parseInt(cartaoParcelas);
+      const valorParcela = isFixo ? valorTotal : (valorTotal / (qtdParcelas > 0 ? qtdParcelas : 1)); 
+
+      const novasParcelas = [];
+      const [anoInicio, mesInicio] = cartaoMesInicio.split('-');
+      const dataBaseInicio = new Date(parseInt(anoInicio), parseInt(mesInicio) - 1, 15);
+      
+      const mesesProjetados = isFixo ? 12 : (qtdParcelas > 0 ? qtdParcelas : 1);
+
+      for (let i = 0; i < mesesProjetados; i++) {
+        const mesCompra = new Date(dataBaseInicio.getFullYear(), dataBaseInicio.getMonth() + i, 15);
+        const dataFormatada = mesCompra.toISOString().split('T')[0];
+        
+        let nomeEstabelecimento = estabelecimentoDigitado;
+        if (!isFixo && qtdParcelas > 1) {
+          nomeEstabelecimento = `${estabelecimentoDigitado} (${i + 1}/${qtdParcelas})`;
+        } else if (isFixo) {
+          nomeEstabelecimento = `${estabelecimentoDigitado} (Fixo)`;
+        }
+
+        novasParcelas.push({
+          user_id: usuarioAtual.id,
+          cartao_id: cartaoSelecionado,
+          estabelecimento: nomeEstabelecimento,
+          valor: valorParcela,
+          data_compra: dataFormatada,
+          categoria: "Outros",
+          forma_pagamento: "Crédito"
+        });
+      }
+
+      const { error } = await supabase.from("gastos").insert(novasParcelas);
+      if (error) throw error;
+
+      alert("🎉 Compra lançada na fatura com sucesso!");
+      setCartaoEstabelecimento(""); setCartaoValor(""); setCartaoParcelas("1"); setIsFixo(false);
+      setCartaoMesInicio(mesAtualDefault);
+      buscarGastos(); 
+    } catch (error: any) { 
+      alert("⚠️ Erro fatal no servidor: " + error.message); 
+    } finally { 
+      setSalvandoCartao(false); 
+    }
+  };
+
+  const parcelasFuturas = todosGastos.filter(g => {
+    if (g.cartao_id !== cartaoSelecionado) return false;
+    if (filtroParcelas === "fixos" && !g.estabelecimento.includes("(Fixo)")) return false;
+    return true; 
+  }).sort((a, b) => new Date(a.data_compra).getTime() - new Date(b.data_compra).getTime());
+
+  const parcelasExibidas = mostrarTodasParcelas ? parcelasFuturas : parcelasFuturas.slice(0, 4);
+
+  const labelsProjecaoCartao: string[] = [];
+  const valoresProjecaoCartao: number[] = [];
+  const hojeProjecao = new Date();
+  const mesesAbreviados = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+  for (let i = 0; i < 6; i++) {
+    const dataProjecao = new Date(hojeProjecao.getFullYear(), hojeProjecao.getMonth() + i, 1);
+    const prefixoAnoMes = `${dataProjecao.getFullYear()}-${String(dataProjecao.getMonth() + 1).padStart(2, '0')}`;
+    
+    labelsProjecaoCartao.push(mesesAbreviados[dataProjecao.getMonth()]);
+    
+    const somaDoMes = todosGastos
+      .filter(g => g.cartao_id === cartaoSelecionado && g.data_compra?.startsWith(prefixoAnoMes))
+      .reduce((acc, g) => acc + (g.valor || 0), 0);
+      
+    valoresProjecaoCartao.push(somaDoMes);
+  }
+
+  if (autenticado === null || loading) {
+    return <div className="flex min-h-screen items-center justify-center bg-canvas dark:bg-slate-950"><Loader2 className="h-8 w-8 animate-spin text-brand-600" /></div>;
+  }
   if (!autenticado) {
-    return (
-      <AuthCard
-        modoCadastro={modoCadastro}
-        setModoCadastro={setModoCadastro}
-        email={emailInput}
-        setEmail={setEmailInput}
-        senha={senhaInput}
-        setSenha={setSenhaInput}
-        loading={loading}
-        onSubmit={lidarComAutenticacao}
-      />
-    );
+    return <AuthCard modoCadastro={modoCadastro} setModoCadastro={setModoCadastro} email={emailInput} setEmail={setEmailInput} senha={senhaInput} setSenha={setSenhaInput} loading={false} onSubmit={lidarComAutenticacao} />;
   }
+
+  const inputFiltro = "w-full rounded-xl border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950/50 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-colors";
+  const tabelaFiltrada = gastosFiltrados.filter(g => (!filtroTabelaData || g.data_compra === filtroTabelaData) && (filtroTabelaCategoria === "todas" || g.categoria === filtroTabelaCategoria) && (filtroTabelaPagamento === "todas" || g.forma_pagamento === filtroTabelaPagamento));
+
+  const todosOsMesesParaLinha = Array.from(new Set(todosGastos.map(g => g.data_compra ? g.data_compra.substring(0, 7) : null).filter(Boolean))).sort() as string[];
+  const labelsEixoX = todosOsMesesParaLinha.map(mes => formatarMesAno(mes));
+  const coresPagamentosFixo: { [key: string]: string } = { "Crédito": "#8B5CF6", "Débito": "#3B82F6", "Pix": "#10B981", "Dinheiro": "#F59E0B", "Vale Alimentação": "#F43F5E", "Vale Refeição": "#F97316" };
+
+  const dataLinhaPagamentos = {
+    labels: labelsEixoX,
+    datasets: pagamentosSelecionados.map((pagamento) => {
+      const somaMensal = todosOsMesesParaLinha.map(mes => todosGastos.filter(g => g.forma_pagamento === pagamento && g.data_compra?.startsWith(mes)).reduce((acc, g) => acc + (g.valor || 0), 0));
+      const cor = coresPagamentosFixo[pagamento] || "#9CA3AF";
+      return { label: pagamento, data: somaMensal, borderColor: cor, backgroundColor: cor, borderWidth: 2, tension: 0.4, pointBackgroundColor: cor, fill: false };
+    })
+  };
+
+  const dataPizza = {
+    labels: Object.keys(dadosCategorias),
+    datasets: [{ data: Object.values(dadosCategorias), backgroundColor: Object.keys(dadosCategorias).map((_, i) => CORES_CATEGORIAS[i % CORES_CATEGORIAS.length]), borderWidth: 1, borderColor: isDark ? '#1e293b' : '#ffffff' }],
+  };
+
+  const dataPagamentos = {
+    labels: Object.keys(dadosPagamentos),
+    datasets: [{ data: Object.values(dadosPagamentos), backgroundColor: Object.keys(dadosPagamentos).map((_, i) => CORES_PAGAMENTOS[i % CORES_PAGAMENTOS.length]), borderWidth: 1, borderColor: isDark ? '#1e293b' : '#ffffff' }],
+  };
+
+  const dataBarras = {
+    labels: Object.keys(dadosDias),
+    datasets: [{ label: "Gastos no Dia (R$)", data: Object.values(dadosDias), backgroundColor: "#059669", borderRadius: 6 }],
+  };
+
+  const dataLinha = {
+    labels: Object.keys(dadosMeses),
+    datasets: [{
+      label: "Gastos no Mês (R$)",
+      data: Object.values(dadosMeses),
+      borderColor: "#047857",
+      backgroundColor: "#04785740",
+      borderWidth: 2,
+      tension: 0.4,
+      pointBackgroundColor: "#047857",
+      fill: true,
+    }],
+  };
 
   return (
-    <div className="min-h-screen bg-canvas">
-      <AppHeader email={usuarioAtual?.email} paginaAtiva="scanner" onLogout={fazerLogout} />
+    <div className="min-h-screen bg-canvas dark:bg-slate-950 overflow-x-hidden w-full transition-colors duration-300">
+      <AppHeader email={usuarioAtual?.email} paginaAtiva="dashboard" onLogout={fazerLogout} />
 
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-10">
-        <div className="grid gap-8 lg:grid-cols-5 lg:gap-12">
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:py-10">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between w-full">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-ink dark:text-white lg:text-3xl">Painel Financeiro</h1>
+            <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">Acompanhe seus gastos, orçamentos e histórico.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-500" />
+            <select value={mesSelecionado} onChange={(e) => setMesSelecionado(e.target.value)} className="w-full cursor-pointer rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-900 px-3 py-2.5 text-sm font-medium text-ink dark:text-slate-200 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 sm:w-52 transition-colors">
+              <option value="todos">Todos os meses</option>
+              {mesesDisponiveis.map((mes) => <option key={mes} value={mes}>{formatarMesAno(mes)}</option>)}
+            </select>
+          </div>
+        </div>
 
-          {/* Painel lateral informativo — visível apenas no desktop */}
-          <aside className="hidden lg:col-span-2 lg:block">
-            <div className="sticky top-24 space-y-8">
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight text-ink">
-                  Registre um gasto
-                </h1>
-                <p className="mt-2 text-[15px] leading-relaxed text-ink-muted">
-                  Fotografe a nota fiscal e deixe a inteligência artificial extrair os
-                  dados, ou digite as informações manualmente.
-                </p>
-              </div>
-
-              <ul className="space-y-5">
-                <li className="flex gap-3.5">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
-                    <ScanLine className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-ink">Leitura automática</p>
-                    <p className="mt-0.5 text-sm text-ink-muted">Estabelecimento, valor, data e categoria extraídos da foto da nota.</p>
-                  </div>
-                </li>
-                <li className="flex gap-3.5">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
-                    <PieChart className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-ink">Painel completo</p>
-                    <p className="mt-0.5 text-sm text-ink-muted">Gráficos por categoria, forma de pagamento e evolução mensal.</p>
-                  </div>
-                </li>
-                <li className="flex gap-3.5">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
-                    <ShieldCheck className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-ink">Dados protegidos</p>
-                    <p className="mt-0.5 text-sm text-ink-muted">Cada conta enxerga somente os próprios gastos e orçamentos.</p>
-                  </div>
-                </li>
-              </ul>
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 w-full">
+          <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-brand-700 to-brand-900 dark:from-brand-800 dark:to-slate-900 p-5 text-white shadow-md sm:col-span-2 lg:col-span-1 min-w-0">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-brand-200 dark:text-brand-300/80">Total no período</p>
+              <h2 className="mt-1 text-3xl font-extrabold tracking-tight truncate">R$ {totalGasto.toFixed(2)}</h2>
             </div>
-          </aside>
-
-          {/* Cartão principal de registro */}
-          <div className="lg:col-span-3">
-            <div className="mb-5 lg:hidden">
-              <h1 className="text-xl font-bold tracking-tight text-ink">Registre um gasto</h1>
-              <p className="mt-1 text-sm text-ink-muted">Escaneie a nota fiscal ou digite os dados.</p>
+            <div className="rounded-xl bg-white/15 dark:bg-white/10 p-3 shrink-0"><TrendingUp className="h-6 w-6" /></div>
+          </div>
+          <div className="hidden items-center justify-between rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-5 shadow-sm sm:flex min-w-0 transition-colors">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-faint dark:text-slate-500">Registros</p>
+              <h2 className="mt-1 text-3xl font-extrabold tracking-tight text-ink dark:text-white truncate">{gastosFiltrados.length}</h2>
             </div>
+            <div className="rounded-xl bg-canvas dark:bg-slate-950 p-3 text-ink-muted dark:text-slate-400 shrink-0"><TableIcon className="h-6 w-6" /></div>
+          </div>
+          <div className="hidden items-center justify-between rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-5 shadow-sm sm:flex min-w-0 transition-colors">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-faint dark:text-slate-500">Maior categoria</p>
+              <h2 className="mt-1 truncate text-2xl font-extrabold tracking-tight text-ink dark:text-white">{Object.keys(dadosCategorias)[0] || "—"}</h2>
+            </div>
+            <div className="rounded-xl bg-canvas dark:bg-slate-950 p-3 text-ink-muted dark:text-slate-400 shrink-0"><Wallet className="h-6 w-6" /></div>
+          </div>
+        </div>
 
-            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm sm:p-7">
-              {!resultado ? (
+        <div className="mb-6 flex w-full gap-1 overflow-x-auto scrollbar-hide rounded-xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-1.5 shadow-sm sm:max-w-[34rem] transition-colors">
+          <button onClick={() => setAbaAtual("graficos")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'graficos' ? 'bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400' : 'text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200'}`}><LayoutDashboard className="h-4 w-4 shrink-0" /> Gráficos</button>
+          <button onClick={() => setAbaAtual("orcamento")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'orcamento' ? 'bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400' : 'text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200'}`}><Wallet className="h-4 w-4 shrink-0" /> Orçamento</button>
+          <button onClick={() => setAbaAtual("cartao")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'cartao' ? 'bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400' : 'text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200'}`}><CreditCard className="h-4 w-4 shrink-0" /> Cartões</button>
+          <button onClick={() => setAbaAtual("tabela")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'tabela' ? 'bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400' : 'text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200'}`}><TableIcon className="h-4 w-4 shrink-0" /> Histórico</button>
+        </div>
+
+        {/* ABA GRÁFICOS */}
+        {abaAtual === "graficos" && (
+          <div className="grid gap-5 lg:grid-cols-2 w-full">
+            <div className="rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-5 shadow-sm min-w-0 transition-colors">
+              <h3 className="mb-4 text-base font-bold text-ink dark:text-white">Divisão por Categorias</h3>
+              {Object.keys(dadosCategorias).length > 0 ? (
                 <>
-                  <div className="mb-6 flex rounded-xl bg-canvas p-1.5">
-                    <button
-                      onClick={() => setModoManual(false)}
-                      className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all ${!modoManual ? 'bg-surface text-brand-700 shadow-sm' : 'text-ink-muted hover:text-ink'}`}
-                    >
-                      <Camera className="h-4 w-4" /> Escanear
-                    </button>
-                    <button
-                      onClick={() => setModoManual(true)}
-                      className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all ${modoManual ? 'bg-surface text-brand-700 shadow-sm' : 'text-ink-muted hover:text-ink'}`}
-                    >
-                      <Pencil className="h-4 w-4" /> Digitar
-                    </button>
-                  </div>
-
-                  {!modoManual ? (
-                    <form onSubmit={handleSubmitIA} className="space-y-6">
-                      <div>
-                        <label className={labelClasses}>O que foi essa compra? (Opcional)</label>
-                        <input
-                          type="text"
-                          placeholder="Ex: Almoço de domingo"
-                          className={inputClasses}
-                          value={contexto}
-                          onChange={(e) => setContexto(e.target.value)}
-                        />
-                      </div>
-
-                      <div>
-                        <label className={labelClasses}>Anexar Nota Fiscal</label>
-                        {imagem ? (
-                          <div className="flex items-center justify-center gap-2 rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm font-medium text-brand-800">
-                            <CheckCircle className="h-5 w-5 shrink-0 text-brand-600" />
-                            <span className="max-w-[200px] truncate sm:max-w-xs">{imagem.name}</span>
-                            <button type="button" onClick={() => setImagem(null)} className="ml-2 text-xs font-semibold text-red-500 underline">Alterar</button>
+                  <div className="flex h-48 w-full items-center justify-center lg:h-56 relative min-w-0"><Pie data={dataPizza} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }} /></div>
+                  <details className="group mt-5 overflow-hidden rounded-xl border border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950 transition-colors">
+                    <summary className="flex cursor-pointer list-none items-center justify-between p-3.5 text-sm font-semibold text-ink dark:text-slate-200 transition-colors hover:bg-edge/40 dark:hover:bg-slate-800/50 [&::-webkit-details-marker]:hidden">
+                      Ver detalhamento e % <ChevronDown className="h-4 w-4 text-ink-faint dark:text-slate-500 transition-transform duration-300 group-open:rotate-180" />
+                    </summary>
+                    <div className="space-y-3.5 border-t border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-4 transition-colors">
+                      {Object.entries(dadosCategorias).map(([nome, valor], index) => {
+                        const cor = CORES_CATEGORIAS[index % CORES_CATEGORIAS.length];
+                        const porcentagem = totalGasto > 0 ? ((valor / totalGasto) * 100).toFixed(1) : "0.0";
+                        return (
+                          <div key={nome} className="flex items-center justify-between text-sm min-w-0">
+                            <div className="flex items-center gap-2.5 min-w-0"><span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: cor }}></span><span className="max-w-[140px] truncate font-medium text-ink dark:text-slate-300">{nome}</span></div>
+                            <div className="flex items-center gap-3 shrink-0"><span className="font-semibold text-ink dark:text-slate-200">R$ {valor.toFixed(2)}</span><span className="min-w-[3.5rem] rounded bg-canvas dark:bg-slate-800 px-1.5 py-0.5 text-center text-xs font-medium text-ink-muted dark:text-slate-400">{porcentagem}%</span></div>
                           </div>
-                        ) : (
-                          <div className="grid grid-cols-2 gap-3">
-                            <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-edge bg-canvas py-7 transition-colors hover:border-brand-300 hover:bg-brand-50/50 sm:py-9">
-                              <Camera className="mb-2 h-6 w-6 text-brand-600" />
-                              <span className="text-xs font-semibold text-ink">Tirar Foto</span>
-                              <input type="file" accept="image/jpeg, image/png, image/jpg" capture="environment" className="hidden" onChange={(e) => setImagem(e.target.files?.[0] || null)} />
-                            </label>
-                            <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-edge bg-canvas py-7 transition-colors hover:border-brand-300 hover:bg-brand-50/50 sm:py-9">
-                              <ImageIcon className="mb-2 h-6 w-6 text-brand-600" />
-                              <span className="text-xs font-semibold text-ink">Abrir Galeria</span>
-                              <input type="file" accept="image/jpeg, image/png, image/jpg" className="hidden" onChange={(e) => setImagem(e.target.files?.[0] || null)} />
-                            </label>
-                          </div>
-                        )}
-                      </div>
-
-                      <button type="submit" disabled={loading || !imagem} className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 p-4 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50">
-                        {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> Analisando nota...</> : <><Upload className="h-5 w-5" /> Analisar Nota</>}
-                      </button>
-                    </form>
-                  ) : (
-                    <form onSubmit={handleSubmitManual} className="space-y-4">
-                      <div>
-                        <label className={labelClasses}>Estabelecimento *</label>
-                        <input required name="estabelecimento" value={formManual.estabelecimento} onChange={lidarComMudancaManual} type="text" placeholder="Ex: Supermercado Extra" className={inputClasses} />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className={labelClasses}>Valor (R$) *</label>
-                          <input required name="valor" value={formManual.valor} onChange={lidarComMudancaManual} type="number" step="0.01" placeholder="0.00" className={inputClasses} />
-                        </div>
-                        <div>
-                          <label className={labelClasses}>Data</label>
-                          <input required name="data_compra" value={formManual.data_compra} onChange={lidarComMudancaManual} type="date" className={inputClasses} />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className={labelClasses}>Categoria</label>
-                          <select name="categoria" value={formManual.categoria} onChange={lidarComMudancaManual} className={inputClasses}>
-                            {CATEGORIAS.map((cat) => (
-                              <option key={cat} value={cat}>{ROTULOS_CATEGORIAS[cat] || cat}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className={labelClasses}>Pagamento</label>
-                          <select name="forma_pagamento" value={formManual.forma_pagamento} onChange={lidarComMudancaManual} className={inputClasses}>
-                            {FORMAS_PAGAMENTO.map((fp) => (
-                              <option key={fp} value={fp}>{fp}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <button type="submit" className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 p-4 text-sm font-semibold text-white transition-colors hover:bg-brand-700">
-                        Avançar
-                      </button>
-                    </form>
-                  )}
+                        );
+                      })}
+                    </div>
+                  </details>
                 </>
+              ) : (<p className="py-12 text-center text-xs text-ink-faint dark:text-slate-500">Sem gastos neste período.</p>)}
+            </div>
+
+            <div className="rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-5 shadow-sm min-w-0 transition-colors">
+              <h3 className="mb-4 flex items-center gap-2 text-base font-bold text-ink dark:text-white"><CreditCard className="h-5 w-5 text-brand-600 dark:text-brand-500" /> Formas de Pagamento</h3>
+              {Object.keys(dadosPagamentos).length > 0 ? (
+                <>
+                  <div className="flex h-48 w-full items-center justify-center lg:h-56 relative min-w-0"><Doughnut data={dataPagamentos} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }} /></div>
+                  <details className="group mt-5 overflow-hidden rounded-xl border border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950 transition-colors">
+                    <summary className="flex cursor-pointer list-none items-center justify-between p-3.5 text-sm font-semibold text-ink dark:text-slate-200 transition-colors hover:bg-edge/40 dark:hover:bg-slate-800/50 [&::-webkit-details-marker]:hidden">
+                      Ver detalhamento e % <ChevronDown className="h-4 w-4 text-ink-faint dark:text-slate-500 transition-transform duration-300 group-open:rotate-180" />
+                    </summary>
+                    <div className="space-y-3.5 border-t border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-4 transition-colors">
+                      {Object.entries(dadosPagamentos).map(([nome, valor], index) => {
+                        const cor = CORES_PAGAMENTOS[index % CORES_PAGAMENTOS.length];
+                        const porcentagem = totalGasto > 0 ? ((valor / totalGasto) * 100).toFixed(1) : "0.0";
+                        return (
+                          <div key={nome} className="flex items-center justify-between text-sm min-w-0">
+                            <div className="flex items-center gap-2.5 min-w-0"><span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: cor }}></span><span className="max-w-[140px] truncate font-medium text-ink dark:text-slate-300">{nome}</span></div>
+                            <div className="flex items-center gap-3 shrink-0"><span className="font-semibold text-ink dark:text-slate-200">R$ {valor.toFixed(2)}</span><span className="min-w-[3.5rem] rounded bg-canvas dark:bg-slate-800 px-1.5 py-0.5 text-center text-xs font-medium text-ink-muted dark:text-slate-400">{porcentagem}%</span></div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </details>
+                </>
+              ) : (<p className="py-12 text-center text-xs text-ink-faint dark:text-slate-500">Sem dados de pagamento.</p>)}
+            </div>
+
+            <div className="rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-5 shadow-sm lg:col-span-2 min-w-0 transition-colors">
+              <div className="flex justify-between items-center mb-4 min-w-0">
+                <h3 className="text-base font-bold text-ink dark:text-white flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-brand-600 dark:text-brand-500" /> Tendência de Pagamentos
+                </h3>
+                <div className="relative shrink-0 ml-2">
+                  <button onClick={() => setDropdownPagamentosAberto(!dropdownPagamentosAberto)} className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider bg-canvas dark:bg-slate-800 border border-edge dark:border-slate-700 rounded-lg px-3 py-2 text-ink-muted dark:text-slate-400 hover:bg-edge/50 dark:hover:bg-slate-700 transition-colors">
+                    Filtrar <ChevronDown className={`w-3 h-3 transition-transform ${dropdownPagamentosAberto ? 'rotate-180' : ''}`} />
+                  </button>
+                  {dropdownPagamentosAberto && (
+                    <div className="absolute right-0 mt-2 w-52 bg-surface dark:bg-slate-900 border border-edge dark:border-slate-700 shadow-xl rounded-xl z-20 p-2 space-y-1 animate-in fade-in zoom-in-95 duration-200">
+                      <p className="text-[10px] font-bold text-ink-faint dark:text-slate-500 uppercase tracking-wider px-2 pb-1 mb-1 border-b border-edge/50 dark:border-slate-700/50">Exibir no gráfico:</p>
+                      {["Crédito", "Débito", "Pix", "Dinheiro", "Vale Alimentação", "Vale Refeição"].map(pag => (
+                        <label key={pag} className="flex items-center gap-2.5 p-2 hover:bg-canvas dark:hover:bg-slate-800 rounded-lg cursor-pointer text-sm font-medium text-ink dark:text-slate-300 transition-colors">
+                          <input type="checkbox" checked={pagamentosSelecionados.includes(pag)} onChange={() => { if (pagamentosSelecionados.includes(pag)) { setPagamentosSelecionados(prev => prev.filter(p => p !== pag)); } else { setPagamentosSelecionados(prev => [...prev, pag]); } }} className="w-4 h-4 rounded border-edge dark:border-slate-600 bg-white dark:bg-slate-900 text-brand-600 focus:ring-brand-500 cursor-pointer" />
+                          {pag}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {pagamentosSelecionados.length === 0 ? (
+                <div className="w-full h-52 flex flex-col items-center justify-center bg-canvas/70 dark:bg-slate-950/50 border-2 border-dashed border-edge dark:border-slate-700 rounded-xl">
+                  <Filter className="w-8 h-8 text-ink-faint dark:text-slate-600 mb-2" />
+                  <p className="text-xs text-ink-muted dark:text-slate-400 font-medium text-center leading-relaxed">Nenhum método selecionado.<br /><span className="text-brand-600 dark:text-brand-400 font-semibold cursor-pointer hover:underline" onClick={() => setDropdownPagamentosAberto(true)}>Abra o filtro</span> e escolha os pagamentos.</p>
+                </div>
               ) : (
-                <div className="space-y-5">
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-600">
-                      <CheckCircle className="h-5 w-5" />
-                    </span>
-                    <h2 className="text-lg font-bold text-ink">Resumo do Gasto</h2>
-                  </div>
-
-                  <dl className="divide-y divide-edge rounded-xl border border-edge bg-canvas">
-                    <div className="flex items-center justify-between gap-4 px-4 py-3">
-                      <dt className="text-sm text-ink-muted">Estabelecimento</dt>
-                      <dd className="text-sm font-semibold text-ink text-right">{resultado.estabelecimento}</dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-4 px-4 py-3">
-                      <dt className="text-sm text-ink-muted">Valor</dt>
-                      <dd className="text-sm font-bold text-ink">R$ {Number(resultado.valor).toFixed(2)}</dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-4 px-4 py-3">
-                      <dt className="text-sm text-ink-muted">Data</dt>
-                      <dd className="text-sm font-semibold text-ink">{resultado.data_compra}</dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-4 px-4 py-3">
-                      <dt className="text-sm text-ink-muted">Categoria</dt>
-                      <dd><span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">{resultado.categoria}</span></dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-4 px-4 py-3">
-                      <dt className="text-sm text-ink-muted">Pagamento</dt>
-                      <dd><span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">{resultado.forma_pagamento || 'Não identificado'}</span></dd>
-                    </div>
-                  </dl>
-
-                  <div className="flex gap-3">
-                    <button onClick={() => setResultado(null)} disabled={salvando} className="flex-1 rounded-xl border border-edge bg-surface p-3.5 text-sm font-semibold text-ink transition-colors hover:bg-canvas">
-                      Cancelar
-                    </button>
-                    <button onClick={salvarNoBanco} disabled={salvando} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-600 p-3.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-60">
-                      {salvando ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Confirmar
-                    </button>
-                  </div>
+                <div className="relative w-full h-52 animate-in fade-in duration-500 lg:h-64 min-w-0">
+                  <Line data={dataLinhaPagamentos} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom', labels: { color: chartTextColor, boxWidth: 12, usePointStyle: true, font: { size: 11, family: 'sans-serif' } } } }, scales: { y: { beginAtZero: true, ticks: { color: chartTextColor, font: { size: 10 } }, grid: { color: chartGridColor } }, x: { ticks: { color: chartTextColor, font: { size: 10 } }, grid: { display: false } } } }} />
                 </div>
               )}
             </div>
+            
+            <div className="rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-5 shadow-sm lg:col-span-2 min-w-0 transition-colors">
+              <div className="mb-4 flex items-center justify-between min-w-0">
+                <h3 className="text-base font-bold text-ink dark:text-white">Histórico de Gastos</h3>
+                <div className="flex rounded-lg border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950 p-1 shrink-0 ml-2">
+                  <button onClick={() => setVisaoHistorico("diario")} className={`rounded-md px-3 py-1 text-[11px] font-semibold transition-colors ${visaoHistorico === "diario" ? "bg-surface dark:bg-slate-800 text-brand-700 dark:text-brand-400 shadow-sm" : "text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200"}`}>Diário</button>
+                  <button onClick={() => setVisaoHistorico("mensal")} className={`rounded-md px-3 py-1 text-[11px] font-semibold transition-colors ${visaoHistorico === "mensal" ? "bg-surface dark:bg-slate-800 text-brand-700 dark:text-brand-400 shadow-sm" : "text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200"}`}>Mensal</button>
+                </div>
+              </div>
 
-            {/* Nota sobre a IA — apenas mobile */}
-            <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-ink-faint lg:hidden">
-              <Sparkles className="h-3.5 w-3.5" /> Leitura de notas fiscais com IA
-            </p>
+              {visaoHistorico === "diario" ? (
+                Object.keys(dadosDias).length > 0 ? (
+                  <div className="relative h-52 w-full lg:h-72 min-w-0"><Bar data={dataBarras} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: chartTextColor, font: { size: 10 } }, grid: { color: chartGridColor } }, x: { ticks: { color: chartTextColor, font: { size: 10 } }, grid: { display: false } } } }} /></div>
+                ) : (<p className="py-12 text-center text-xs text-ink-faint dark:text-slate-500">Sem histórico neste período.</p>)
+              ) : (
+                Object.keys(dadosMeses).length > 0 ? (
+                  <div className="relative h-52 w-full lg:h-72 min-w-0"><Line data={dataLinha} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: chartTextColor, font: { size: 10 } }, grid: { color: chartGridColor } }, x: { ticks: { color: chartTextColor, font: { size: 10 } }, grid: { display: false } } } }} /></div>
+                ) : (<p className="py-12 text-center text-xs text-ink-faint dark:text-slate-500">Sem histórico mensal.</p>)
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ABA ORÇAMENTO */}
+        {abaAtual === "orcamento" && (
+          <div className="rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-5 shadow-sm sm:p-6 w-full min-w-0 transition-colors">
+            <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full">
+              <div>
+                <h3 className="text-base font-bold text-ink dark:text-white">Limites de Gasto</h3>
+                <p className="mt-0.5 text-xs text-ink-muted dark:text-slate-400 sm:text-sm">Controle seu teto de gastos por categoria.</p>
+              </div>
+              <div className="flex rounded-lg border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950 p-1 self-start sm:self-auto">
+                <button onClick={() => setTipoOrcamento("mensal")} className={`rounded-md px-4 py-1.5 text-xs font-semibold transition-colors ${tipoOrcamento === "mensal" ? "bg-surface dark:bg-slate-800 text-brand-700 dark:text-brand-400 shadow-sm" : "text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200"}`}>Mensal</button>
+                <button onClick={() => setTipoOrcamento("anual")} className={`rounded-md px-4 py-1.5 text-xs font-semibold transition-colors ${tipoOrcamento === "anual" ? "bg-surface dark:bg-slate-800 text-brand-700 dark:text-brand-400 shadow-sm" : "text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200"}`}>Anual</button>
+              </div>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2 w-full">
+              {CATEGORIAS.map((cat) => {
+                const multiplicador = tipoOrcamento === "anual" ? 12 : 1;
+                const jaGasto = (dadosCategorias[cat] || 0) * (tipoOrcamento === "anual" ? 1 : 1);
+                const limiteBase = limites[cat] || null;
+                const limiteDefinido = limiteBase ? limiteBase * multiplicador : null;
+                const porcentagemUso = limiteDefinido ? (jaGasto / limiteDefinido) * 100 : 0;
+
+                let corDaBarra = "bg-brand-500";
+                if (porcentagemUso >= 70 && porcentagemUso < 90) corDaBarra = "bg-amber-500";
+                if (porcentagemUso >= 90) corDaBarra = "bg-red-500";
+
+                return (
+                  <div key={cat} className="space-y-2 rounded-xl border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950/50 p-4 min-w-0 transition-colors">
+                    <div className="flex items-center justify-between text-sm font-medium w-full min-w-0">
+                      <span className="text-ink dark:text-slate-200 truncate max-w-[40%] sm:max-w-[50%]">{cat}</span>
+
+                      {categoriaEditandoLimite === cat ? (
+                        <form onSubmit={(e) => salvarLimiteCategoria(e, cat)} className="flex items-center gap-1.5 shrink-0">
+                          <input
+                            required
+                            type="number"
+                            placeholder="R$"
+                            value={valorNovoLimite}
+                            onChange={(e) => setValorNovoLimite(e.target.value)}
+                            className="w-16 sm:w-20 rounded-md border border-edge dark:border-slate-700 bg-surface dark:bg-slate-900 px-1.5 py-1 text-xs text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                          />
+                          <button type="submit" disabled={salvandoLimite} className="rounded-md bg-brand-600 p-1.5 text-white hover:bg-brand-700 dark:hover:bg-brand-500">
+                            {salvandoLimite ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                          </button>
+                          <button type="button" onClick={() => setCategoriaEditandoLimite(null)} className="rounded-md bg-edge dark:bg-slate-800 p-1.5 text-ink-muted dark:text-slate-400 hover:bg-edge/70 dark:hover:bg-slate-700">
+                            <X className="h-3 w-3" />
+                          </button>
+
+                          {limiteBase && (
+                            <button type="button" onClick={() => deletarLimiteCategoria(cat)} className="ml-1 sm:ml-2 rounded-md bg-red-100 dark:bg-red-950/40 p-1.5 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-950/60">
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          )}
+                        </form>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-xs shrink-0">
+                          {limiteDefinido ? (
+                            <>
+                              <span className="font-bold text-ink dark:text-white">Limite: R$ {limiteDefinido.toFixed(0)}</span>
+                              <button onClick={() => { setCategoriaEditandoLimite(cat); setValorNovoLimite(limiteBase?.toString() || ""); }} className="text-ink-faint dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400">
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                            </>
+                          ) : (
+                            <button onClick={() => setCategoriaEditandoLimite(cat)} className="font-semibold text-brand-700 dark:text-brand-400 hover:underline">
+                              + Definir Teto
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {limiteDefinido && (
+                      <div className="space-y-1 w-full">
+                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-edge dark:bg-slate-800">
+                          <div className={`h-2.5 rounded-full ${corDaBarra} transition-all duration-500`} style={{ width: `${Math.min(porcentagemUso, 100)}%` }}></div>
+                        </div>
+                        <div className="flex justify-between text-[11px] font-medium text-ink-muted dark:text-slate-400">
+                          <span className="truncate">Gasto: R$ {jaGasto.toFixed(2)}</span>
+                          <span className={porcentagemUso >= 100 ? "font-bold text-red-600 dark:text-red-400 shrink-0" : "shrink-0"}>{porcentagemUso.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ABA GESTÃO DE CARTÕES */}
+        {abaAtual === "cartao" && (
+          <div className="space-y-6 w-full min-w-0">
+            
+            <div className="flex w-full items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              {cartoes.map(c => (
+                <button 
+                  key={c.id} 
+                  onClick={() => setCartaoSelecionado(c.id)}
+                  className={`flex shrink-0 items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${cartaoSelecionado === c.id ? 'border-brand-600 bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 shadow-sm' : 'border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 text-ink dark:text-slate-300 hover:bg-canvas dark:hover:bg-slate-800'}`}
+                >
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.cor }}></div>
+                  {c.nome}
+                </button>
+              ))}
+              <button onClick={() => setModalCartaoAberto(true)} className="flex shrink-0 items-center gap-1 px-4 py-2.5 rounded-xl border border-dashed border-ink-faint dark:border-slate-700 bg-transparent text-sm font-semibold text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200 hover:border-edge dark:hover:border-slate-500 transition-colors">
+                <Plus className="w-4 h-4" /> Novo Cartão
+              </button>
+            </div>
+
+            {cartoes.length === 0 ? (
+               <div className="flex flex-col items-center justify-center py-16 sm:py-20 px-4 border-2 border-dashed border-edge dark:border-slate-800 rounded-3xl bg-surface/50 dark:bg-slate-900/50 w-full min-w-0 transition-colors">
+                 <CreditCard className="w-12 h-12 sm:w-16 sm:h-16 text-ink-faint dark:text-slate-600 mb-4" />
+                 <h3 className="text-lg sm:text-xl font-bold text-ink dark:text-slate-200 mb-2 text-center">Nenhum cartão cadastrado</h3>
+                 <p className="text-xs sm:text-sm text-ink-muted dark:text-slate-400 text-center max-w-md mb-6">Cadastre seu primeiro cartão de crédito para acompanhar faturas, projetar limites e centralizar todas as suas compras parceladas.</p>
+                 <button onClick={() => setModalCartaoAberto(true)} className="bg-brand-600 hover:bg-brand-700 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-colors">
+                   + Cadastrar Cartão
+                 </button>
+               </div>
+            ) : (
+              <div className="grid w-full gap-6 lg:grid-cols-2">
+                <div className="space-y-6 w-full min-w-0">
+                  
+                  {/* CARD PRINCIPAL */}
+                  <div className="rounded-3xl p-5 sm:p-7 text-white shadow-xl relative overflow-hidden transition-all duration-500 w-full min-w-0" style={{ backgroundColor: cartaoAtivo?.cor || '#0e5c3e' }}>
+                    <div className="flex justify-between items-start mb-6 sm:mb-8 min-w-0 w-full">
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] font-bold tracking-wider text-white/80 uppercase truncate">
+                        <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" /> Fatura Atual • {diasFaltamFechar === 0 ? "Fecha Hoje" : `Fecha em ${diasFaltamFechar} dias`}
+                      </div>
+                      <button onClick={deletarCartaoAtual} title="Excluir Cartão" className="text-white/60 hover:text-red-300 transition-colors p-1.5 sm:p-2 rounded-full hover:bg-white/10 -mt-1 sm:-mt-2 -mr-1 sm:-mr-2 shrink-0 ml-2">
+                        <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                      </button>
+                    </div>
+                    <div className="mb-6 sm:mb-10 w-full min-w-0">
+                      <p className="text-xs sm:text-sm text-white/80 mb-1">Total a Pagar</p>
+                      <h3 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight truncate w-full min-w-0">R$ {faturaAtualValor.toFixed(2)}</h3>
+                    </div>
+                    <div className="flex justify-between items-end border-t border-white/20 pt-4 sm:pt-5 min-w-0 w-full">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] sm:text-xs text-white/80 mb-0.5">Limite Disponível</p>
+                        <p className="text-sm sm:text-lg font-semibold text-white truncate w-full pr-2">R$ {limiteDisponivelCartao.toFixed(2)}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[10px] sm:text-xs text-white/80 mb-0.5">Vencimento</p>
+                        <p className="text-sm sm:text-lg font-semibold text-white">{rotuloVencimento}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-surface dark:bg-slate-900 rounded-2xl p-4 sm:p-6 border border-edge dark:border-slate-800 shadow-sm w-full min-w-0 transition-colors">
+                    <div className="flex justify-between items-center mb-6">
+                      <h4 className="text-base sm:text-lg font-bold text-ink dark:text-white">Projeção 6 Meses</h4>
+                      <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-ink-faint dark:text-slate-500 shrink-0" />
+                    </div>
+                    <div className="relative h-40 w-full min-w-0">
+                      <Bar
+                        data={{
+                          labels: labelsProjecaoCartao,
+                          datasets: [{
+                            data: valoresProjecaoCartao,
+                            backgroundColor: isDark ? '#334155' : '#e5e7eb',
+                            hoverBackgroundColor: cartaoAtivo?.cor || '#047857',
+                            borderRadius: 4
+                          }]
+                        }}
+                        options={{
+                          responsive: true, maintainAspectRatio: false,
+                          plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (context) => `R$ ${(context.parsed.y || 0).toFixed(2)}` } } },
+                          scales: { x: { grid: { display: false }, border: { display: false }, ticks: { color: chartTextColor, font: { size: 10 } } }, y: { display: false } }
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6 w-full min-w-0">
+                  
+                  {/* FORMULÁRIO DE LANÇAMENTO */}
+                  <form onSubmit={lancarCompraCartao} className="bg-surface dark:bg-slate-900 rounded-2xl p-4 sm:p-6 border border-edge dark:border-slate-800 shadow-sm w-full min-w-0 transition-colors">
+                    <h4 className="text-sm sm:text-base font-bold text-ink dark:text-white flex items-center gap-2 mb-4">
+                      <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600 dark:text-brand-500 shrink-0" /> Lançar Compra
+                    </h4>
+                    <div className="border-t border-edge dark:border-slate-800 pt-4 space-y-4 w-full">
+                      <div className="w-full">
+                        <label className="block text-xs font-semibold text-ink dark:text-slate-300 mb-1.5">Estabelecimento</label>
+                        <input required value={cartaoEstabelecimento} onChange={e => setCartaoEstabelecimento(e.target.value)} type="text" placeholder="✍️ Digite aqui o nome do local..." className="w-full rounded-xl border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 placeholder-ink-faint dark:placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 transition-colors" />
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full">
+                        <div className="w-full sm:flex-1 min-w-0">
+                          <label className="block text-xs font-semibold text-ink dark:text-slate-300 mb-1.5">Valor Total (R$)</label>
+                          <input required value={cartaoValor} onChange={e => setCartaoValor(e.target.value)} type="number" step="0.01" placeholder="0,00" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 placeholder-ink-faint dark:placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 transition-colors" />
+                        </div>
+                        
+                        <div className="flex gap-3 w-full sm:w-auto min-w-0">
+                          <div className="flex-1 sm:w-24 min-w-0">
+                            <label className="block text-xs font-semibold text-ink dark:text-slate-300 mb-1.5">Parcelas</label>
+                            <input 
+                              required 
+                              disabled={isFixo}
+                              value={cartaoParcelas} 
+                              onChange={e => setCartaoParcelas(e.target.value)} 
+                              type="number" 
+                              min="1"
+                              className="w-full rounded-xl border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50 transition-colors" 
+                            />
+                          </div>
+                          <div className="flex-1 sm:w-36 min-w-0">
+                            <label className="block text-xs font-semibold text-ink dark:text-slate-300 mb-1.5">Mês Inicial</label>
+                            <input 
+                              required 
+                              value={cartaoMesInicio} 
+                              onChange={e => setCartaoMesInicio(e.target.value)} 
+                              type="month" 
+                              className="w-full rounded-xl border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 transition-colors" 
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-canvas dark:bg-slate-950/50 p-3 rounded-xl border border-edge dark:border-slate-800 w-full transition-colors">
+                        <label className="flex items-center gap-2 text-sm text-ink dark:text-slate-300 font-medium cursor-pointer shrink-0">
+                          <input 
+                            type="checkbox" 
+                            checked={isFixo} 
+                            onChange={e => setIsFixo(e.target.checked)} 
+                            className="w-4 h-4 rounded border-edge dark:border-slate-600 bg-white dark:bg-slate-900 text-brand-600 focus:ring-brand-500" 
+                          />
+                          Compra Fixa Mensal
+                        </label>
+                        {cartaoValor && (
+                          <span className="text-xs font-bold text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-900/30 px-2.5 py-1.5 rounded-lg border border-brand-100 dark:border-brand-800/50 text-center truncate">
+                            Será cobrado: R$ {(isFixo ? parseFloat(cartaoValor) : (parseFloat(cartaoValor) / (parseInt(cartaoParcelas) || 1))).toFixed(2)} / mês
+                          </span>
+                        )}
+                      </div>
+
+                      <button type="submit" disabled={salvandoCartao} className="w-full bg-brand-600 dark:bg-brand-500 hover:bg-brand-700 dark:hover:bg-brand-600 disabled:opacity-50 text-white font-bold text-sm py-3 rounded-xl transition-colors flex justify-center items-center gap-2 mt-2">
+                        {salvandoCartao ? <Loader2 className="w-4 h-4 animate-spin" /> : "✓ Adicionar à Fatura"}
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* TABELA DE PRÓXIMAS PARCELAS */}
+                  <div className="bg-surface dark:bg-slate-900 rounded-2xl p-0 border border-edge dark:border-slate-800 shadow-sm overflow-hidden w-full min-w-0 transition-colors">
+                    <div className="p-4 sm:p-5 flex justify-between items-center border-b border-edge dark:border-slate-800 bg-canvas/30 dark:bg-slate-950/30 w-full min-w-0">
+                      <h4 className="text-sm sm:text-base font-bold text-ink dark:text-white flex items-center gap-2 shrink-0">
+                        <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-ink-muted dark:text-slate-400" /> Próximas Parcelas
+                      </h4>
+                      <div className="flex rounded-lg border border-brand-200 dark:border-brand-800/50 bg-brand-50 dark:bg-brand-900/20 p-1 shrink-0 ml-2">
+                        <button onClick={() => setFiltroParcelas("todos")} className={`px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-bold rounded-md shadow-sm transition-colors ${filtroParcelas === "todos" ? "bg-white dark:bg-brand-600 text-brand-700 dark:text-white" : "text-brand-600/70 dark:text-brand-400/70 hover:text-brand-700 dark:hover:text-brand-300"}`}>Todos</button>
+                        <button onClick={() => setFiltroParcelas("fixos")} className={`px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-bold rounded-md shadow-sm transition-colors ${filtroParcelas === "fixos" ? "bg-white dark:bg-brand-600 text-brand-700 dark:text-white" : "text-brand-600/70 dark:text-brand-400/70 hover:text-brand-700 dark:hover:text-brand-300"}`}>Fixos</button>
+                      </div>
+                    </div>
+                    
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full text-left text-sm whitespace-nowrap">
+                        <thead className="bg-canvas dark:bg-slate-950/80 border-b border-edge dark:border-slate-800 text-[10px] sm:text-xs font-semibold text-ink-faint dark:text-slate-500">
+                          <tr>
+                            <th className="px-4 sm:px-5 py-3">Estabelecimento</th>
+                            <th className="px-4 sm:px-5 py-3 text-right">Valor</th>
+                            <th className="px-4 sm:px-5 py-3 text-center">Mês</th>
+                            <th className="px-4 sm:px-5 py-3 text-right">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-edge/50 dark:divide-slate-800/80 text-xs sm:text-sm">
+                          {parcelasExibidas.length > 0 ? (
+                            parcelasExibidas.map((parcela) => {
+                              const [ano, mes] = parcela.data_compra.split("-");
+                              return (
+                                <tr key={parcela.id} className="hover:bg-canvas/50 dark:hover:bg-slate-800/50 transition-colors">
+                                  <td className="px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-2.5 sm:gap-3 font-medium text-ink dark:text-slate-200">
+                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex shrink-0 items-center justify-center"><ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4" /></div>
+                                    <span className="truncate max-w-[120px] sm:max-w-[150px] block" title={parcela.estabelecimento}>{parcela.estabelecimento}</span>
+                                  </td>
+                                  <td className="px-4 sm:px-5 py-3 sm:py-4 text-right font-bold text-ink dark:text-slate-100">R$ {parcela.valor.toFixed(2)}</td>
+                                  <td className="px-4 sm:px-5 py-3 sm:py-4 text-center text-ink-muted dark:text-slate-400">{mes}/{ano.slice(-2)}</td>
+                                  
+                                  <td className="px-4 sm:px-5 py-3 sm:py-4 text-right">
+                                    <div className="flex justify-end gap-1 sm:gap-1.5">
+                                      <button type="button" onClick={() => setGastoEditando(parcela)} className="rounded p-1 sm:p-1.5 text-brand-600 dark:text-brand-400 transition-colors hover:bg-brand-50 dark:hover:bg-brand-900/30" title="Editar valor da parcela">
+                                        <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                      </button>
+                                      <button type="button" onClick={() => deletarGasto(parcela)} className="rounded p-1 sm:p-1.5 text-red-500 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-900/30" title="Excluir compra da fatura">
+                                        <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          ) : (
+                            <tr><td colSpan={4} className="px-5 py-8 text-center text-ink-muted dark:text-slate-500">Nenhuma fatura encontrada.</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    {parcelasFuturas.length > 4 && (
+                      <div className="bg-canvas dark:bg-slate-950/80 border-t border-edge dark:border-slate-800 p-3 text-center w-full transition-colors">
+                        <button onClick={() => setMostrarTodasParcelas(!mostrarTodasParcelas)} className="text-xs font-bold text-brand-700 dark:text-brand-400 hover:underline">
+                          {mostrarTodasParcelas ? "Ocultar parcelas" : `Ver todas as ${parcelasFuturas.length} parcelas futuras`}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ABA HISTÓRICO */}
+        {abaAtual === "tabela" && (
+          <div className="space-y-4 w-full min-w-0">
+            <div className="space-y-3 rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-4 shadow-sm sm:p-5 w-full transition-colors">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-ink dark:text-white"><Filter className="h-4 w-4 text-brand-600 dark:text-brand-500 shrink-0" /> Filtros da Tabela</h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 w-full">
+                <input type="date" value={filtroTabelaData} onChange={e => setFiltroTabelaData(e.target.value)} className={inputFiltro} />
+                <select value={filtroTabelaCategoria} onChange={e => setFiltroTabelaCategoria(e.target.value)} className={`${inputFiltro} truncate`}>
+                  <option value="todas">Todas Categorias</option>
+                  {CATEGORIAS.map((cat) => (
+                    <option key={cat} value={cat}>{ROTULOS_CATEGORIAS[cat] || cat}</option>
+                  ))}
+                </select>
+                <select value={filtroTabelaPagamento} onChange={e => setFiltroTabelaPagamento(e.target.value)} className={`${inputFiltro} truncate`}>
+                  <option value="todas">Todos Pagamentos</option>
+                  {FORMAS_PAGAMENTO.map((fp) => (
+                    <option key={fp} value={fp}>{fp}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="mb-8 overflow-hidden rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 shadow-sm w-full transition-colors">
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left text-sm text-ink-muted dark:text-slate-400 whitespace-nowrap">
+                  <thead className="border-b border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950/80 text-xs uppercase text-ink-faint dark:text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3">Data</th>
+                      <th className="px-4 py-3">Estabelecimento</th>
+                      <th className="px-4 py-3">Detalhes</th>
+                      <th className="px-4 py-3 text-right">Valor e Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-edge/60 dark:divide-slate-800/80">
+                    {tabelaFiltrada.length > 0 ? (
+                      tabelaFiltrada.map(g => (
+                        <tr key={g.id} className="transition-colors hover:bg-canvas/60 dark:hover:bg-slate-800/50">
+                          <td className="px-4 py-3.5 font-medium text-ink dark:text-slate-200">{g.data_compra ? g.data_compra.split('-').reverse().join('/') : 'S/ Data'}</td>
+                          <td className="max-w-[150px] truncate px-4 py-3.5 sm:max-w-[240px] text-ink dark:text-slate-300" title={g.estabelecimento}>{g.estabelecimento}</td>
+                          <td className="space-y-1.5 px-4 py-3.5 sm:space-y-0 sm:space-x-1.5">
+                            <span className="inline-block max-w-max truncate rounded-full bg-brand-50 dark:bg-brand-900/30 px-2 py-0.5 text-[10px] font-semibold text-brand-700 dark:text-brand-300">{g.categoria}</span>
+                            <span className="inline-block max-w-max truncate rounded-full bg-sky-50 dark:bg-sky-900/30 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:text-sky-300">{g.forma_pagamento}</span>
+                          </td>
+                          <td className="px-4 py-3.5 text-right">
+                            <span className="mb-1.5 block font-bold text-ink dark:text-slate-100">R$ {g.valor.toFixed(2)}</span>
+                            <div className="flex justify-end gap-1.5">
+                              <button onClick={() => setGastoEditando(g)} className="rounded p-1.5 text-brand-600 dark:text-brand-400 transition-colors hover:bg-brand-50 dark:hover:bg-brand-900/30"><Pencil className="h-4 w-4" /></button>
+                              <button onClick={() => deletarGasto(g)} className="rounded p-1.5 text-red-500 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-900/30"><Trash2 className="h-4 w-4" /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr><td colSpan={4} className="px-4 py-12 text-center text-ink-faint dark:text-slate-500">Nenhum gasto encontrado.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </main>
+
+      {/* MODAL DE EDIÇÃO DE GASTO */}
+      {gastoEditando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/80 p-4 backdrop-blur-sm transition-colors">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-surface dark:bg-slate-900 shadow-xl border border-edge dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950 p-4">
+              <h3 className="text-lg font-bold text-ink dark:text-white">Editar Gasto</h3>
+              <button onClick={() => setGastoEditando(null)} className="rounded-full bg-edge dark:bg-slate-800 p-1.5 text-ink-muted dark:text-slate-400 transition-colors hover:bg-edge/70 dark:hover:bg-slate-700 hover:text-ink dark:hover:text-white"><X className="h-5 w-5" /></button>
+            </div>
+            <form onSubmit={salvarEdicao} className="space-y-4 p-5">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-ink dark:text-slate-300">Estabelecimento</label>
+                <input required value={gastoEditando.estabelecimento} onChange={e => setGastoEditando({ ...gastoEditando, estabelecimento: e.target.value })} type="text" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-colors" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-ink dark:text-slate-300">Valor (R$)</label>
+                  <input required value={gastoEditando.valor} onChange={e => setGastoEditando({ ...gastoEditando, valor: e.target.value })} type="number" step="0.01" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-colors" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-ink dark:text-slate-300">Data</label>
+                  <input required value={gastoEditando.data_compra || ""} onChange={e => setGastoEditando({ ...gastoEditando, data_compra: e.target.value })} type="date" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-colors" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-ink dark:text-slate-300">Categoria</label>
+                  <select value={gastoEditando.categoria} onChange={e => setGastoEditando({ ...gastoEditando, categoria: e.target.value })} className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-colors">
+                    {CATEGORIAS.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-ink dark:text-slate-300">Pagamento</label>
+                  <select value={gastoEditando.forma_pagamento} onChange={e => setGastoEditando({ ...gastoEditando, forma_pagamento: e.target.value })} className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-colors">
+                    {FORMAS_PAGAMENTO.map((fp) => (
+                      <option key={fp} value={fp}>{fp}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <button type="submit" disabled={loadingEdit} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 dark:bg-brand-500 p-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 dark:hover:bg-brand-600 disabled:opacity-60">
+                {loadingEdit ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Salvar Alterações
+              </button>
+            </form>
           </div>
         </div>
-      </main>
+      )}
+
+      {/* MODAL CADASTRO DE CARTÃO */}
+      {modalCartaoAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/80 p-4 backdrop-blur-sm transition-colors">
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-surface dark:bg-slate-900 shadow-xl border border-edge dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950 p-4">
+              <h3 className="text-lg font-bold text-ink dark:text-white flex items-center gap-2"><CreditCard className="w-5 h-5 text-brand-600 dark:text-brand-500" /> Cadastrar Cartão</h3>
+              <button onClick={() => setModalCartaoAberto(false)} className="rounded-full bg-edge dark:bg-slate-800 p-1.5 text-ink-muted dark:text-slate-400 hover:bg-edge/70 dark:hover:bg-slate-700 hover:text-ink dark:hover:text-white transition-colors"><X className="h-5 w-5" /></button>
+            </div>
+            <form onSubmit={cadastrarCartao} className="space-y-4 p-5">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-ink dark:text-slate-300">Nome do Cartão (Ex: Nubank, Itaú)</label>
+                <input required value={novoCartao.nome} onChange={e => setNovoCartao({...novoCartao, nome: e.target.value})} type="text" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-ink dark:text-slate-300">Limite Total (R$)</label>
+                <input required value={novoCartao.limite} onChange={e => setNovoCartao({...novoCartao, limite: e.target.value})} type="number" step="0.01" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-ink dark:text-slate-300">Dia do Fechamento</label>
+                  <input required value={novoCartao.diaFechamento} onChange={e => setNovoCartao({...novoCartao, diaFechamento: e.target.value})} type="number" min="1" max="31" placeholder="Ex: 5" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-ink dark:text-slate-300">Dia do Vencimento</label>
+                  <input required value={novoCartao.diaVencimento} onChange={e => setNovoCartao({...novoCartao, diaVencimento: e.target.value})} type="number" min="1" max="31" placeholder="Ex: 12" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors" />
+                </div>
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-semibold text-ink dark:text-slate-300">Cor do Cartão</label>
+                <div className="flex gap-3">
+                  {['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#F43F5E', '#1F2937'].map(color => (
+                    <button key={color} type="button" onClick={() => setNovoCartao({...novoCartao, cor: color})} className={`w-8 h-8 rounded-full border-2 ${novoCartao.cor === color ? 'border-brand-600 dark:border-brand-400 scale-110' : 'border-transparent hover:scale-105'} transition-transform`} style={{ backgroundColor: color }} />
+                  ))}
+                </div>
+              </div>
+              <button type="submit" className="mt-4 w-full bg-brand-600 dark:bg-brand-500 hover:bg-brand-700 dark:hover:bg-brand-600 text-white font-bold py-3 rounded-xl transition-colors">
+                Salvar Cartão
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

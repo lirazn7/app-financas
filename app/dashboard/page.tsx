@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { Bar, Pie, Doughnut, Line } from "react-chartjs-2";
 import { Loader2, TrendingUp, Calendar, CreditCard, ChevronDown, Table as TableIcon, LayoutDashboard, Filter, Trash2, Pencil, X, Save, Wallet, ShoppingCart, BarChart3, Plus } from "lucide-react";
 import {
@@ -18,9 +18,9 @@ import {
   Legend,
   ArcElement,
 } from "chart.js";
-import { CATEGORIAS, ROTULOS_CATEGORIAS, FORMAS_PAGAMENTO, CORES_CATEGORIAS, CORES_PAGAMENTOS } from "../../lib/constantes";
-import AppHeader from "../../components/AppHeader";
-import AuthCard from "../../components/AuthCard";
+import { CATEGORIAS, ROTULOS_CATEGORIAS, FORMAS_PAGAMENTO, CORES_CATEGORIAS, CORES_PAGAMENTOS } from "@/lib/constantes";
+import AppHeader from "@/components/AppHeader";
+import AuthCard from "@/components/AuthCard";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
 

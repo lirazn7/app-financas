@@ -1,67 +1,78 @@
-"use function";
 "use client";
 
-import Link from "next/link";
-import { ScanLine, BarChart3, LogOut, Wallet } from "lucide-react";
+import { LogOut, LayoutDashboard, Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
-type Props = {
-  email?: string | null;
-  paginaAtiva: "scanner" | "dashboard";
-  onLogout: () => void;
-};
+interface AppHeaderProps {
+  email?: string;
+  paginaAtiva?: "dashboard" | "perfil";
+  onLogout?: () => void;
+}
 
-export default function AppHeader({ email, paginaAtiva, onLogout }: Props) {
-  const linkBase =
-    "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors";
-  const linkAtivo = "bg-brand-50 text-brand-700";
-  const linkInativo = "text-ink-muted hover:text-ink hover:bg-canvas";
+export default function AppHeader({ email, paginaAtiva = "dashboard", onLogout }: AppHeaderProps) {
+  const { theme, setTheme } = useTheme();
+  const [montado, setMontado] = useState(false);
+
+  // Evita o erro de hidratação garantindo que o ícone só renderize no cliente
+  useEffect(() => setMontado(true), []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-edge bg-surface/95 backdrop-blur pt-[env(safe-area-inset-top)]">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:h-16 sm:px-6">
-        <Link href="/" className="flex items-center gap-2.5 shrink-0">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white sm:h-9 sm:w-9">
-            <Wallet className="h-4 w-4 sm:h-5 sm:w-5" />
+    // 🌟 Nota: Adicionei bg-white dark:bg-surface-dark (ou slate-900) e bordas escuras
+    <header className="sticky top-0 z-40 w-full border-b border-edge dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        
+        {/* Lado Esquerdo: Logo */}
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm">
+            <LayoutDashboard className="h-5 w-5" />
+          </div>
+          <span className="text-lg font-bold tracking-tight text-ink dark:text-white hidden sm:block">
+            Finanças<span className="text-brand-600 dark:text-brand-500">AI</span>
           </span>
-          <span className="hidden text-[15px] font-bold tracking-tight text-ink sm:block">
-            Assistente Financeiro
-          </span>
-        </Link>
+        </div>
 
-        <nav className="flex items-center gap-1">
-          <Link
-            href="/"
-            className={`${linkBase} ${paginaAtiva === "scanner" ? linkAtivo : linkInativo}`}
-          >
-            <ScanLine className="h-4 w-4" />
-            <span>Registrar</span>
-          </Link>
-          <Link
-            href="/dashboard"
-            className={`${linkBase} ${paginaAtiva === "dashboard" ? linkAtivo : linkInativo}`}
-          >
-            <BarChart3 className="h-4 w-4" />
-            <span>Painel</span>
-          </Link>
-        </nav>
-
-        <div className="flex items-center gap-2 min-w-0">
+        {/* Lado Direito: Infos, Tema e Logout */}
+        <div className="flex items-center gap-3 sm:gap-4">
+          
           {email && (
-            <span
-              className="hidden max-w-[200px] truncate rounded-full border border-edge bg-canvas px-3 py-1 text-xs font-medium text-ink-muted md:block"
-              title={email}
-            >
-              {email}
-            </span>
+            <div className="hidden items-center gap-2 sm:flex pr-4 border-r border-edge dark:border-slate-800">
+              <div className="h-7 w-7 overflow-hidden rounded-full bg-brand-100 dark:bg-brand-900/50 flex items-center justify-center border border-brand-200 dark:border-brand-800">
+                <span className="text-xs font-bold text-brand-700 dark:text-brand-400">
+                  {email.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <span className="text-sm font-medium text-ink-muted dark:text-slate-400">
+                {email}
+              </span>
+            </div>
           )}
-          <button
-            onClick={onLogout}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold text-ink-muted transition-colors hover:bg-red-50 hover:text-red-600"
-            title="Sair da conta"
-          >
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Sair</span>
-          </button>
+
+          {/* 🌟 BOTÃO DE DARK MODE */}
+          {montado && (
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="flex h-9 w-9 items-center justify-center rounded-lg bg-canvas dark:bg-slate-800 text-ink-muted dark:text-slate-300 transition-colors hover:bg-edge dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+              aria-label="Alternar tema"
+              title="Alternar tema"
+            >
+              {theme === "dark" ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
+            </button>
+          )}
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-950/30 px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-400 transition-colors hover:bg-red-100 dark:hover:bg-red-950/50"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Sair</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

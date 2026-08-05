@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Bar, Pie, Doughnut, Line } from "react-chartjs-2";
 import { Loader2, TrendingUp, Calendar, CreditCard, ChevronDown, Table as TableIcon, LayoutDashboard, Filter, Trash2, Pencil, X, Save, Wallet, ShoppingCart, BarChart3, Plus } from "lucide-react";
+import { useTheme } from "next-themes";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -25,6 +26,13 @@ import AuthCard from "@/components/AuthCard";
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
 
 export default function Dashboard() {
+  // 🌟 Hook de Tema para adaptar os gráficos
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
+  // Configurações de cores dinâmicas para os gráficos (Grid e Textos)
+  const chartGridColor = isDark ? "#334155" : "#eef1f4";
+  const chartTextColor = isDark ? "#94a3b8" : "#6b7280";
 
   // --- ESTADOS DA ABA CARTÃO ---
   const [cartoes, setCartoes] = useState<any[]>([]);
@@ -497,13 +505,13 @@ export default function Dashboard() {
   }
 
   if (autenticado === null || loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-canvas"><Loader2 className="h-8 w-8 animate-spin text-brand-600" /></div>;
+    return <div className="flex min-h-screen items-center justify-center bg-canvas dark:bg-slate-950"><Loader2 className="h-8 w-8 animate-spin text-brand-600" /></div>;
   }
   if (!autenticado) {
     return <AuthCard modoCadastro={modoCadastro} setModoCadastro={setModoCadastro} email={emailInput} setEmail={setEmailInput} senha={senhaInput} setSenha={setSenhaInput} loading={false} onSubmit={lidarComAutenticacao} />;
   }
 
-  const inputFiltro = "w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25";
+  const inputFiltro = "w-full rounded-xl border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950/50 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-colors";
   const tabelaFiltrada = gastosFiltrados.filter(g => (!filtroTabelaData || g.data_compra === filtroTabelaData) && (filtroTabelaCategoria === "todas" || g.categoria === filtroTabelaCategoria) && (filtroTabelaPagamento === "todas" || g.forma_pagamento === filtroTabelaPagamento));
 
   const todosOsMesesParaLinha = Array.from(new Set(todosGastos.map(g => g.data_compra ? g.data_compra.substring(0, 7) : null).filter(Boolean))).sort() as string[];
@@ -521,12 +529,12 @@ export default function Dashboard() {
 
   const dataPizza = {
     labels: Object.keys(dadosCategorias),
-    datasets: [{ data: Object.values(dadosCategorias), backgroundColor: Object.keys(dadosCategorias).map((_, i) => CORES_CATEGORIAS[i % CORES_CATEGORIAS.length]), borderWidth: 1 }],
+    datasets: [{ data: Object.values(dadosCategorias), backgroundColor: Object.keys(dadosCategorias).map((_, i) => CORES_CATEGORIAS[i % CORES_CATEGORIAS.length]), borderWidth: 1, borderColor: isDark ? '#1e293b' : '#ffffff' }],
   };
 
   const dataPagamentos = {
     labels: Object.keys(dadosPagamentos),
-    datasets: [{ data: Object.values(dadosPagamentos), backgroundColor: Object.keys(dadosPagamentos).map((_, i) => CORES_PAGAMENTOS[i % CORES_PAGAMENTOS.length]), borderWidth: 1 }],
+    datasets: [{ data: Object.values(dadosPagamentos), backgroundColor: Object.keys(dadosPagamentos).map((_, i) => CORES_PAGAMENTOS[i % CORES_PAGAMENTOS.length]), borderWidth: 1, borderColor: isDark ? '#1e293b' : '#ffffff' }],
   };
 
   const dataBarras = {
@@ -548,21 +556,19 @@ export default function Dashboard() {
     }],
   };
 
-  // 🌟 CORREÇÃO 1: overflow-x-hidden na raiz para matar a rolagem horizontal
   return (
-    <div className="min-h-screen bg-canvas overflow-x-hidden w-full">
+    <div className="min-h-screen bg-canvas dark:bg-slate-950 overflow-x-hidden w-full transition-colors duration-300">
       <AppHeader email={usuarioAtual?.email} paginaAtiva="dashboard" onLogout={fazerLogout} />
 
-      {/* 🌟 CORREÇÃO 2: w-full e max-w-full */}
       <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:py-10">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between w-full">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-ink lg:text-3xl">Painel Financeiro</h1>
-            <p className="mt-1 text-sm text-ink-muted">Acompanhe seus gastos, orçamentos e histórico.</p>
+            <h1 className="text-xl font-bold tracking-tight text-ink dark:text-white lg:text-3xl">Painel Financeiro</h1>
+            <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">Acompanhe seus gastos, orçamentos e histórico.</p>
           </div>
           <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 shrink-0 text-brand-600" />
-            <select value={mesSelecionado} onChange={(e) => setMesSelecionado(e.target.value)} className="w-full cursor-pointer rounded-xl border border-edge bg-surface px-3 py-2.5 text-sm font-medium text-ink shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 sm:w-52">
+            <Calendar className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-500" />
+            <select value={mesSelecionado} onChange={(e) => setMesSelecionado(e.target.value)} className="w-full cursor-pointer rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-900 px-3 py-2.5 text-sm font-medium text-ink dark:text-slate-200 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 sm:w-52 transition-colors">
               <option value="todos">Todos os meses</option>
               {mesesDisponiveis.map((mes) => <option key={mes} value={mes}>{formatarMesAno(mes)}</option>)}
             </select>
@@ -570,107 +576,106 @@ export default function Dashboard() {
         </div>
 
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 w-full">
-          <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-brand-700 to-brand-900 p-5 text-white shadow-md sm:col-span-2 lg:col-span-1 min-w-0">
+          <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-brand-700 to-brand-900 dark:from-brand-800 dark:to-slate-900 p-5 text-white shadow-md sm:col-span-2 lg:col-span-1 min-w-0">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-brand-200">Total no período</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-brand-200 dark:text-brand-300/80">Total no período</p>
               <h2 className="mt-1 text-3xl font-extrabold tracking-tight truncate">R$ {totalGasto.toFixed(2)}</h2>
             </div>
-            <div className="rounded-xl bg-white/15 p-3 shrink-0"><TrendingUp className="h-6 w-6" /></div>
+            <div className="rounded-xl bg-white/15 dark:bg-white/10 p-3 shrink-0"><TrendingUp className="h-6 w-6" /></div>
           </div>
-          <div className="hidden items-center justify-between rounded-2xl border border-edge bg-surface p-5 shadow-sm sm:flex min-w-0">
+          <div className="hidden items-center justify-between rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-5 shadow-sm sm:flex min-w-0 transition-colors">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-ink-faint">Registros</p>
-              <h2 className="mt-1 text-3xl font-extrabold tracking-tight text-ink truncate">{gastosFiltrados.length}</h2>
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-faint dark:text-slate-500">Registros</p>
+              <h2 className="mt-1 text-3xl font-extrabold tracking-tight text-ink dark:text-white truncate">{gastosFiltrados.length}</h2>
             </div>
-            <div className="rounded-xl bg-canvas p-3 text-ink-muted shrink-0"><TableIcon className="h-6 w-6" /></div>
+            <div className="rounded-xl bg-canvas dark:bg-slate-950 p-3 text-ink-muted dark:text-slate-400 shrink-0"><TableIcon className="h-6 w-6" /></div>
           </div>
-          <div className="hidden items-center justify-between rounded-2xl border border-edge bg-surface p-5 shadow-sm sm:flex min-w-0">
+          <div className="hidden items-center justify-between rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-5 shadow-sm sm:flex min-w-0 transition-colors">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-ink-faint">Maior categoria</p>
-              <h2 className="mt-1 truncate text-2xl font-extrabold tracking-tight text-ink">{Object.keys(dadosCategorias)[0] || "—"}</h2>
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-faint dark:text-slate-500">Maior categoria</p>
+              <h2 className="mt-1 truncate text-2xl font-extrabold tracking-tight text-ink dark:text-white">{Object.keys(dadosCategorias)[0] || "—"}</h2>
             </div>
-            <div className="rounded-xl bg-canvas p-3 text-ink-muted shrink-0"><Wallet className="h-6 w-6" /></div>
+            <div className="rounded-xl bg-canvas dark:bg-slate-950 p-3 text-ink-muted dark:text-slate-400 shrink-0"><Wallet className="h-6 w-6" /></div>
           </div>
         </div>
 
-        {/* 🌟 CORREÇÃO 3: Menu superior — no mobile ocupa toda a largura e rola; no desktop encolhe ao conteúdo (sem "barra cortada") */}
-        <div className="mb-6 flex w-full gap-1 overflow-x-auto scrollbar-hide rounded-xl border border-edge bg-surface p-1.5 shadow-sm lg:inline-flex lg:w-auto">
-          <button onClick={() => setAbaAtual("graficos")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm lg:flex-none lg:px-6 ${abaAtual === 'graficos' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><LayoutDashboard className="h-4 w-4 shrink-0" /> Gráficos</button>
-          <button onClick={() => setAbaAtual("orcamento")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm lg:flex-none lg:px-6 ${abaAtual === 'orcamento' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><Wallet className="h-4 w-4 shrink-0" /> Orçamento</button>
-          <button onClick={() => setAbaAtual("cartao")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm lg:flex-none lg:px-6 ${abaAtual === 'cartao' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><CreditCard className="h-4 w-4 shrink-0" /> Cartões</button>
-          <button onClick={() => setAbaAtual("tabela")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm lg:flex-none lg:px-6 ${abaAtual === 'tabela' ? 'bg-brand-50 text-brand-700' : 'text-ink-muted hover:text-ink'}`}><TableIcon className="h-4 w-4 shrink-0" /> Histórico</button>
+        <div className="mb-6 flex w-full gap-1 overflow-x-auto scrollbar-hide rounded-xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-1.5 shadow-sm sm:max-w-[34rem] transition-colors">
+          <button onClick={() => setAbaAtual("graficos")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'graficos' ? 'bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400' : 'text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200'}`}><LayoutDashboard className="h-4 w-4 shrink-0" /> Gráficos</button>
+          <button onClick={() => setAbaAtual("orcamento")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'orcamento' ? 'bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400' : 'text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200'}`}><Wallet className="h-4 w-4 shrink-0" /> Orçamento</button>
+          <button onClick={() => setAbaAtual("cartao")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'cartao' ? 'bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400' : 'text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200'}`}><CreditCard className="h-4 w-4 shrink-0" /> Cartões</button>
+          <button onClick={() => setAbaAtual("tabela")} className={`flex min-w-[105px] flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-all sm:text-sm ${abaAtual === 'tabela' ? 'bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400' : 'text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200'}`}><TableIcon className="h-4 w-4 shrink-0" /> Histórico</button>
         </div>
 
         {/* ABA GRÁFICOS */}
         {abaAtual === "graficos" && (
           <div className="grid gap-5 lg:grid-cols-2 w-full">
-            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm min-w-0">
-              <h3 className="mb-4 text-base font-bold text-ink">Divisão por Categorias</h3>
+            <div className="rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-5 shadow-sm min-w-0 transition-colors">
+              <h3 className="mb-4 text-base font-bold text-ink dark:text-white">Divisão por Categorias</h3>
               {Object.keys(dadosCategorias).length > 0 ? (
                 <>
                   <div className="flex h-48 w-full items-center justify-center lg:h-56 relative min-w-0"><Pie data={dataPizza} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }} /></div>
-                  <details className="group mt-5 overflow-hidden rounded-xl border border-edge bg-canvas">
-                    <summary className="flex cursor-pointer list-none items-center justify-between p-3.5 text-sm font-semibold text-ink transition-colors hover:bg-edge/40 [&::-webkit-details-marker]:hidden">
-                      Ver detalhamento e % <ChevronDown className="h-4 w-4 text-ink-faint transition-transform duration-300 group-open:rotate-180" />
+                  <details className="group mt-5 overflow-hidden rounded-xl border border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950 transition-colors">
+                    <summary className="flex cursor-pointer list-none items-center justify-between p-3.5 text-sm font-semibold text-ink dark:text-slate-200 transition-colors hover:bg-edge/40 dark:hover:bg-slate-800/50 [&::-webkit-details-marker]:hidden">
+                      Ver detalhamento e % <ChevronDown className="h-4 w-4 text-ink-faint dark:text-slate-500 transition-transform duration-300 group-open:rotate-180" />
                     </summary>
-                    <div className="space-y-3.5 border-t border-edge bg-surface p-4">
+                    <div className="space-y-3.5 border-t border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-4 transition-colors">
                       {Object.entries(dadosCategorias).map(([nome, valor], index) => {
                         const cor = CORES_CATEGORIAS[index % CORES_CATEGORIAS.length];
                         const porcentagem = totalGasto > 0 ? ((valor / totalGasto) * 100).toFixed(1) : "0.0";
                         return (
                           <div key={nome} className="flex items-center justify-between text-sm min-w-0">
-                            <div className="flex items-center gap-2.5 min-w-0"><span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: cor }}></span><span className="max-w-[140px] truncate font-medium text-ink">{nome}</span></div>
-                            <div className="flex items-center gap-3 shrink-0"><span className="font-semibold text-ink">R$ {valor.toFixed(2)}</span><span className="min-w-[3.5rem] rounded bg-canvas px-1.5 py-0.5 text-center text-xs font-medium text-ink-muted">{porcentagem}%</span></div>
+                            <div className="flex items-center gap-2.5 min-w-0"><span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: cor }}></span><span className="max-w-[140px] truncate font-medium text-ink dark:text-slate-300">{nome}</span></div>
+                            <div className="flex items-center gap-3 shrink-0"><span className="font-semibold text-ink dark:text-slate-200">R$ {valor.toFixed(2)}</span><span className="min-w-[3.5rem] rounded bg-canvas dark:bg-slate-800 px-1.5 py-0.5 text-center text-xs font-medium text-ink-muted dark:text-slate-400">{porcentagem}%</span></div>
                           </div>
                         );
                       })}
                     </div>
                   </details>
                 </>
-              ) : (<p className="py-12 text-center text-xs text-ink-faint">Sem gastos neste período.</p>)}
+              ) : (<p className="py-12 text-center text-xs text-ink-faint dark:text-slate-500">Sem gastos neste período.</p>)}
             </div>
 
-            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm min-w-0">
-              <h3 className="mb-4 flex items-center gap-2 text-base font-bold text-ink"><CreditCard className="h-5 w-5 text-brand-600" /> Formas de Pagamento</h3>
+            <div className="rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-5 shadow-sm min-w-0 transition-colors">
+              <h3 className="mb-4 flex items-center gap-2 text-base font-bold text-ink dark:text-white"><CreditCard className="h-5 w-5 text-brand-600 dark:text-brand-500" /> Formas de Pagamento</h3>
               {Object.keys(dadosPagamentos).length > 0 ? (
                 <>
                   <div className="flex h-48 w-full items-center justify-center lg:h-56 relative min-w-0"><Doughnut data={dataPagamentos} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }} /></div>
-                  <details className="group mt-5 overflow-hidden rounded-xl border border-edge bg-canvas">
-                    <summary className="flex cursor-pointer list-none items-center justify-between p-3.5 text-sm font-semibold text-ink transition-colors hover:bg-edge/40 [&::-webkit-details-marker]:hidden">
-                      Ver detalhamento e % <ChevronDown className="h-4 w-4 text-ink-faint transition-transform duration-300 group-open:rotate-180" />
+                  <details className="group mt-5 overflow-hidden rounded-xl border border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950 transition-colors">
+                    <summary className="flex cursor-pointer list-none items-center justify-between p-3.5 text-sm font-semibold text-ink dark:text-slate-200 transition-colors hover:bg-edge/40 dark:hover:bg-slate-800/50 [&::-webkit-details-marker]:hidden">
+                      Ver detalhamento e % <ChevronDown className="h-4 w-4 text-ink-faint dark:text-slate-500 transition-transform duration-300 group-open:rotate-180" />
                     </summary>
-                    <div className="space-y-3.5 border-t border-edge bg-surface p-4">
+                    <div className="space-y-3.5 border-t border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-4 transition-colors">
                       {Object.entries(dadosPagamentos).map(([nome, valor], index) => {
                         const cor = CORES_PAGAMENTOS[index % CORES_PAGAMENTOS.length];
                         const porcentagem = totalGasto > 0 ? ((valor / totalGasto) * 100).toFixed(1) : "0.0";
                         return (
                           <div key={nome} className="flex items-center justify-between text-sm min-w-0">
-                            <div className="flex items-center gap-2.5 min-w-0"><span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: cor }}></span><span className="max-w-[140px] truncate font-medium text-ink">{nome}</span></div>
-                            <div className="flex items-center gap-3 shrink-0"><span className="font-semibold text-ink">R$ {valor.toFixed(2)}</span><span className="min-w-[3.5rem] rounded bg-canvas px-1.5 py-0.5 text-center text-xs font-medium text-ink-muted">{porcentagem}%</span></div>
+                            <div className="flex items-center gap-2.5 min-w-0"><span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: cor }}></span><span className="max-w-[140px] truncate font-medium text-ink dark:text-slate-300">{nome}</span></div>
+                            <div className="flex items-center gap-3 shrink-0"><span className="font-semibold text-ink dark:text-slate-200">R$ {valor.toFixed(2)}</span><span className="min-w-[3.5rem] rounded bg-canvas dark:bg-slate-800 px-1.5 py-0.5 text-center text-xs font-medium text-ink-muted dark:text-slate-400">{porcentagem}%</span></div>
                           </div>
                         );
                       })}
                     </div>
                   </details>
                 </>
-              ) : (<p className="py-12 text-center text-xs text-ink-faint">Sem dados de pagamento.</p>)}
+              ) : (<p className="py-12 text-center text-xs text-ink-faint dark:text-slate-500">Sem dados de pagamento.</p>)}
             </div>
 
-            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm lg:col-span-2 min-w-0">
+            <div className="rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-5 shadow-sm lg:col-span-2 min-w-0 transition-colors">
               <div className="flex justify-between items-center mb-4 min-w-0">
-                <h3 className="text-base font-bold text-ink flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-brand-600" /> Tendência de Pagamentos
+                <h3 className="text-base font-bold text-ink dark:text-white flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-brand-600 dark:text-brand-500" /> Tendência de Pagamentos
                 </h3>
                 <div className="relative shrink-0 ml-2">
-                  <button onClick={() => setDropdownPagamentosAberto(!dropdownPagamentosAberto)} className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider bg-canvas border border-edge rounded-lg px-3 py-2 text-ink-muted hover:bg-edge/50 transition-colors">
-                    Filtrar Meios <ChevronDown className={`w-3 h-3 transition-transform ${dropdownPagamentosAberto ? 'rotate-180' : ''}`} />
+                  <button onClick={() => setDropdownPagamentosAberto(!dropdownPagamentosAberto)} className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider bg-canvas dark:bg-slate-800 border border-edge dark:border-slate-700 rounded-lg px-3 py-2 text-ink-muted dark:text-slate-400 hover:bg-edge/50 dark:hover:bg-slate-700 transition-colors">
+                    Filtrar <ChevronDown className={`w-3 h-3 transition-transform ${dropdownPagamentosAberto ? 'rotate-180' : ''}`} />
                   </button>
                   {dropdownPagamentosAberto && (
-                    <div className="absolute right-0 mt-2 w-52 bg-surface border border-edge shadow-xl rounded-xl z-20 p-2 space-y-1 animate-in fade-in zoom-in-95 duration-200">
-                      <p className="text-[10px] font-bold text-ink-faint uppercase tracking-wider px-2 pb-1 mb-1 border-b border-edge/50">Exibir no gráfico:</p>
+                    <div className="absolute right-0 mt-2 w-52 bg-surface dark:bg-slate-900 border border-edge dark:border-slate-700 shadow-xl rounded-xl z-20 p-2 space-y-1 animate-in fade-in zoom-in-95 duration-200">
+                      <p className="text-[10px] font-bold text-ink-faint dark:text-slate-500 uppercase tracking-wider px-2 pb-1 mb-1 border-b border-edge/50 dark:border-slate-700/50">Exibir no gráfico:</p>
                       {["Crédito", "Débito", "Pix", "Dinheiro", "Vale Alimentação", "Vale Refeição"].map(pag => (
-                        <label key={pag} className="flex items-center gap-2.5 p-2 hover:bg-canvas rounded-lg cursor-pointer text-sm font-medium text-ink transition-colors">
-                          <input type="checkbox" checked={pagamentosSelecionados.includes(pag)} onChange={() => { if (pagamentosSelecionados.includes(pag)) { setPagamentosSelecionados(prev => prev.filter(p => p !== pag)); } else { setPagamentosSelecionados(prev => [...prev, pag]); } }} className="w-4 h-4 rounded border-edge text-brand-600 focus:ring-brand-500 cursor-pointer" />
+                        <label key={pag} className="flex items-center gap-2.5 p-2 hover:bg-canvas dark:hover:bg-slate-800 rounded-lg cursor-pointer text-sm font-medium text-ink dark:text-slate-300 transition-colors">
+                          <input type="checkbox" checked={pagamentosSelecionados.includes(pag)} onChange={() => { if (pagamentosSelecionados.includes(pag)) { setPagamentosSelecionados(prev => prev.filter(p => p !== pag)); } else { setPagamentosSelecionados(prev => [...prev, pag]); } }} className="w-4 h-4 rounded border-edge dark:border-slate-600 bg-white dark:bg-slate-900 text-brand-600 focus:ring-brand-500 cursor-pointer" />
                           {pag}
                         </label>
                       ))}
@@ -679,34 +684,34 @@ export default function Dashboard() {
                 </div>
               </div>
               {pagamentosSelecionados.length === 0 ? (
-                <div className="w-full h-52 flex flex-col items-center justify-center bg-canvas/70 border-2 border-dashed border-edge rounded-xl">
-                  <Filter className="w-8 h-8 text-ink-faint mb-2" />
-                  <p className="text-xs text-ink-muted font-medium text-center leading-relaxed">Nenhum método selecionado.<br /><span className="text-brand-600 font-semibold cursor-pointer hover:underline" onClick={() => setDropdownPagamentosAberto(true)}>Abra o filtro</span> e escolha os pagamentos.</p>
+                <div className="w-full h-52 flex flex-col items-center justify-center bg-canvas/70 dark:bg-slate-950/50 border-2 border-dashed border-edge dark:border-slate-700 rounded-xl">
+                  <Filter className="w-8 h-8 text-ink-faint dark:text-slate-600 mb-2" />
+                  <p className="text-xs text-ink-muted dark:text-slate-400 font-medium text-center leading-relaxed">Nenhum método selecionado.<br /><span className="text-brand-600 dark:text-brand-400 font-semibold cursor-pointer hover:underline" onClick={() => setDropdownPagamentosAberto(true)}>Abra o filtro</span> e escolha os pagamentos.</p>
                 </div>
               ) : (
                 <div className="relative w-full h-52 animate-in fade-in duration-500 lg:h-64 min-w-0">
-                  <Line data={dataLinhaPagamentos} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 12, usePointStyle: true, font: { size: 11, family: 'sans-serif' } } } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 10 } }, grid: { color: '#eef1f4' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} />
+                  <Line data={dataLinhaPagamentos} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom', labels: { color: chartTextColor, boxWidth: 12, usePointStyle: true, font: { size: 11, family: 'sans-serif' } } } }, scales: { y: { beginAtZero: true, ticks: { color: chartTextColor, font: { size: 10 } }, grid: { color: chartGridColor } }, x: { ticks: { color: chartTextColor, font: { size: 10 } }, grid: { display: false } } } }} />
                 </div>
               )}
             </div>
             
-            <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm lg:col-span-2 min-w-0">
+            <div className="rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-5 shadow-sm lg:col-span-2 min-w-0 transition-colors">
               <div className="mb-4 flex items-center justify-between min-w-0">
-                <h3 className="text-base font-bold text-ink">Histórico de Gastos</h3>
-                <div className="flex rounded-lg border border-edge bg-canvas p-1 shrink-0 ml-2">
-                  <button onClick={() => setVisaoHistorico("diario")} className={`rounded-md px-3 py-1 text-[11px] font-semibold transition-colors ${visaoHistorico === "diario" ? "bg-surface text-brand-700 shadow-sm" : "text-ink-muted hover:text-ink"}`}>Diário</button>
-                  <button onClick={() => setVisaoHistorico("mensal")} className={`rounded-md px-3 py-1 text-[11px] font-semibold transition-colors ${visaoHistorico === "mensal" ? "bg-surface text-brand-700 shadow-sm" : "text-ink-muted hover:text-ink"}`}>Mensal</button>
+                <h3 className="text-base font-bold text-ink dark:text-white">Histórico de Gastos</h3>
+                <div className="flex rounded-lg border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950 p-1 shrink-0 ml-2">
+                  <button onClick={() => setVisaoHistorico("diario")} className={`rounded-md px-3 py-1 text-[11px] font-semibold transition-colors ${visaoHistorico === "diario" ? "bg-surface dark:bg-slate-800 text-brand-700 dark:text-brand-400 shadow-sm" : "text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200"}`}>Diário</button>
+                  <button onClick={() => setVisaoHistorico("mensal")} className={`rounded-md px-3 py-1 text-[11px] font-semibold transition-colors ${visaoHistorico === "mensal" ? "bg-surface dark:bg-slate-800 text-brand-700 dark:text-brand-400 shadow-sm" : "text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200"}`}>Mensal</button>
                 </div>
               </div>
 
               {visaoHistorico === "diario" ? (
                 Object.keys(dadosDias).length > 0 ? (
-                  <div className="relative h-52 w-full lg:h-72 min-w-0"><Bar data={dataBarras} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#eef1f4' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} /></div>
-                ) : (<p className="py-12 text-center text-xs text-ink-faint">Sem histórico neste período.</p>)
+                  <div className="relative h-52 w-full lg:h-72 min-w-0"><Bar data={dataBarras} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: chartTextColor, font: { size: 10 } }, grid: { color: chartGridColor } }, x: { ticks: { color: chartTextColor, font: { size: 10 } }, grid: { display: false } } } }} /></div>
+                ) : (<p className="py-12 text-center text-xs text-ink-faint dark:text-slate-500">Sem histórico neste período.</p>)
               ) : (
                 Object.keys(dadosMeses).length > 0 ? (
-                  <div className="relative h-52 w-full lg:h-72 min-w-0"><Line data={dataLinha} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } }, grid: { color: '#eef1f4' } }, x: { ticks: { font: { size: 10 } }, grid: { display: false } } } }} /></div>
-                ) : (<p className="py-12 text-center text-xs text-ink-faint">Sem histórico mensal.</p>)
+                  <div className="relative h-52 w-full lg:h-72 min-w-0"><Line data={dataLinha} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: chartTextColor, font: { size: 10 } }, grid: { color: chartGridColor } }, x: { ticks: { color: chartTextColor, font: { size: 10 } }, grid: { display: false } } } }} /></div>
+                ) : (<p className="py-12 text-center text-xs text-ink-faint dark:text-slate-500">Sem histórico mensal.</p>)
               )}
             </div>
           </div>
@@ -714,15 +719,15 @@ export default function Dashboard() {
 
         {/* ABA ORÇAMENTO */}
         {abaAtual === "orcamento" && (
-          <div className="rounded-2xl border border-edge bg-surface p-5 shadow-sm sm:p-6 w-full min-w-0">
+          <div className="rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-5 shadow-sm sm:p-6 w-full min-w-0 transition-colors">
             <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full">
               <div>
-                <h3 className="text-base font-bold text-ink">Limites de Gasto</h3>
-                <p className="mt-0.5 text-xs text-ink-muted sm:text-sm">Controle seu teto de gastos por categoria.</p>
+                <h3 className="text-base font-bold text-ink dark:text-white">Limites de Gasto</h3>
+                <p className="mt-0.5 text-xs text-ink-muted dark:text-slate-400 sm:text-sm">Controle seu teto de gastos por categoria.</p>
               </div>
-              <div className="flex rounded-lg border border-edge bg-canvas p-1 self-start sm:self-auto">
-                <button onClick={() => setTipoOrcamento("mensal")} className={`rounded-md px-4 py-1.5 text-xs font-semibold transition-colors ${tipoOrcamento === "mensal" ? "bg-surface text-brand-700 shadow-sm" : "text-ink-muted hover:text-ink"}`}>Mensal</button>
-                <button onClick={() => setTipoOrcamento("anual")} className={`rounded-md px-4 py-1.5 text-xs font-semibold transition-colors ${tipoOrcamento === "anual" ? "bg-surface text-brand-700 shadow-sm" : "text-ink-muted hover:text-ink"}`}>Anual</button>
+              <div className="flex rounded-lg border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950 p-1 self-start sm:self-auto">
+                <button onClick={() => setTipoOrcamento("mensal")} className={`rounded-md px-4 py-1.5 text-xs font-semibold transition-colors ${tipoOrcamento === "mensal" ? "bg-surface dark:bg-slate-800 text-brand-700 dark:text-brand-400 shadow-sm" : "text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200"}`}>Mensal</button>
+                <button onClick={() => setTipoOrcamento("anual")} className={`rounded-md px-4 py-1.5 text-xs font-semibold transition-colors ${tipoOrcamento === "anual" ? "bg-surface dark:bg-slate-800 text-brand-700 dark:text-brand-400 shadow-sm" : "text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200"}`}>Anual</button>
               </div>
             </div>
 
@@ -739,9 +744,9 @@ export default function Dashboard() {
                 if (porcentagemUso >= 90) corDaBarra = "bg-red-500";
 
                 return (
-                  <div key={cat} className="space-y-2 rounded-xl border border-edge bg-canvas p-4 min-w-0">
+                  <div key={cat} className="space-y-2 rounded-xl border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950/50 p-4 min-w-0 transition-colors">
                     <div className="flex items-center justify-between text-sm font-medium w-full min-w-0">
-                      <span className="text-ink truncate max-w-[40%] sm:max-w-[50%]">{cat}</span>
+                      <span className="text-ink dark:text-slate-200 truncate max-w-[40%] sm:max-w-[50%]">{cat}</span>
 
                       {categoriaEditandoLimite === cat ? (
                         <form onSubmit={(e) => salvarLimiteCategoria(e, cat)} className="flex items-center gap-1.5 shrink-0">
@@ -751,17 +756,17 @@ export default function Dashboard() {
                             placeholder="R$"
                             value={valorNovoLimite}
                             onChange={(e) => setValorNovoLimite(e.target.value)}
-                            className="w-16 sm:w-20 rounded-md border border-edge bg-surface px-1.5 py-1 text-xs focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                            className="w-16 sm:w-20 rounded-md border border-edge dark:border-slate-700 bg-surface dark:bg-slate-900 px-1.5 py-1 text-xs text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
                           />
-                          <button type="submit" disabled={salvandoLimite} className="rounded-md bg-brand-600 p-1.5 text-white hover:bg-brand-700">
+                          <button type="submit" disabled={salvandoLimite} className="rounded-md bg-brand-600 p-1.5 text-white hover:bg-brand-700 dark:hover:bg-brand-500">
                             {salvandoLimite ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                           </button>
-                          <button type="button" onClick={() => setCategoriaEditandoLimite(null)} className="rounded-md bg-edge p-1.5 text-ink-muted hover:bg-edge/70">
+                          <button type="button" onClick={() => setCategoriaEditandoLimite(null)} className="rounded-md bg-edge dark:bg-slate-800 p-1.5 text-ink-muted dark:text-slate-400 hover:bg-edge/70 dark:hover:bg-slate-700">
                             <X className="h-3 w-3" />
                           </button>
 
                           {limiteBase && (
-                            <button type="button" onClick={() => deletarLimiteCategoria(cat)} className="ml-1 sm:ml-2 rounded-md bg-red-100 p-1.5 text-red-600 hover:bg-red-200">
+                            <button type="button" onClick={() => deletarLimiteCategoria(cat)} className="ml-1 sm:ml-2 rounded-md bg-red-100 dark:bg-red-950/40 p-1.5 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-950/60">
                               <Trash2 className="h-3 w-3" />
                             </button>
                           )}
@@ -770,13 +775,13 @@ export default function Dashboard() {
                         <div className="flex items-center gap-1.5 text-xs shrink-0">
                           {limiteDefinido ? (
                             <>
-                              <span className="font-bold text-ink">Limite: R$ {limiteDefinido.toFixed(0)}</span>
-                              <button onClick={() => { setCategoriaEditandoLimite(cat); setValorNovoLimite(limiteBase?.toString() || ""); }} className="text-ink-faint hover:text-brand-600">
+                              <span className="font-bold text-ink dark:text-white">Limite: R$ {limiteDefinido.toFixed(0)}</span>
+                              <button onClick={() => { setCategoriaEditandoLimite(cat); setValorNovoLimite(limiteBase?.toString() || ""); }} className="text-ink-faint dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400">
                                 <Pencil className="h-3 w-3" />
                               </button>
                             </>
                           ) : (
-                            <button onClick={() => setCategoriaEditandoLimite(cat)} className="font-semibold text-brand-700 hover:underline">
+                            <button onClick={() => setCategoriaEditandoLimite(cat)} className="font-semibold text-brand-700 dark:text-brand-400 hover:underline">
                               + Definir Teto
                             </button>
                           )}
@@ -786,12 +791,12 @@ export default function Dashboard() {
 
                     {limiteDefinido && (
                       <div className="space-y-1 w-full">
-                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-edge">
+                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-edge dark:bg-slate-800">
                           <div className={`h-2.5 rounded-full ${corDaBarra} transition-all duration-500`} style={{ width: `${Math.min(porcentagemUso, 100)}%` }}></div>
                         </div>
-                        <div className="flex justify-between text-[11px] font-medium text-ink-muted">
+                        <div className="flex justify-between text-[11px] font-medium text-ink-muted dark:text-slate-400">
                           <span className="truncate">Gasto: R$ {jaGasto.toFixed(2)}</span>
-                          <span className={porcentagemUso >= 100 ? "font-bold text-red-600 shrink-0" : "shrink-0"}>{porcentagemUso.toFixed(1)}%</span>
+                          <span className={porcentagemUso >= 100 ? "font-bold text-red-600 dark:text-red-400 shrink-0" : "shrink-0"}>{porcentagemUso.toFixed(1)}%</span>
                         </div>
                       </div>
                     )}
@@ -802,41 +807,40 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ABA GESTÃO DE CARTÕES - MOBILE RESPONSIVE BLINDADO */}
+        {/* ABA GESTÃO DE CARTÕES */}
         {abaAtual === "cartao" && (
           <div className="space-y-6 w-full min-w-0">
             
-            {/* 🌟 CORREÇÃO 4: overflow e min-w-0 forçado para não empurrar a tela */}
             <div className="flex w-full items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
               {cartoes.map(c => (
                 <button 
                   key={c.id} 
                   onClick={() => setCartaoSelecionado(c.id)}
-                  className={`flex shrink-0 items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${cartaoSelecionado === c.id ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm' : 'border-edge bg-surface text-ink hover:bg-canvas'}`}
+                  className={`flex shrink-0 items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${cartaoSelecionado === c.id ? 'border-brand-600 bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 shadow-sm' : 'border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 text-ink dark:text-slate-300 hover:bg-canvas dark:hover:bg-slate-800'}`}
                 >
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.cor }}></div>
                   {c.nome}
                 </button>
               ))}
-              <button onClick={() => setModalCartaoAberto(true)} className="flex shrink-0 items-center gap-1 px-4 py-2.5 rounded-xl border border-dashed border-ink-faint bg-transparent text-sm font-semibold text-ink-muted hover:text-ink hover:border-edge transition-colors">
+              <button onClick={() => setModalCartaoAberto(true)} className="flex shrink-0 items-center gap-1 px-4 py-2.5 rounded-xl border border-dashed border-ink-faint dark:border-slate-700 bg-transparent text-sm font-semibold text-ink-muted dark:text-slate-400 hover:text-ink dark:hover:text-slate-200 hover:border-edge dark:hover:border-slate-500 transition-colors">
                 <Plus className="w-4 h-4" /> Novo Cartão
               </button>
             </div>
 
             {cartoes.length === 0 ? (
-               <div className="flex flex-col items-center justify-center py-16 sm:py-20 px-4 border-2 border-dashed border-edge rounded-3xl bg-surface/50 w-full min-w-0">
-                 <CreditCard className="w-12 h-12 sm:w-16 sm:h-16 text-ink-faint mb-4" />
-                 <h3 className="text-lg sm:text-xl font-bold text-ink mb-2 text-center">Nenhum cartão cadastrado</h3>
-                 <p className="text-xs sm:text-sm text-ink-muted text-center max-w-md mb-6">Cadastre seu primeiro cartão de crédito para acompanhar faturas, projetar limites e centralizar todas as suas compras parceladas.</p>
+               <div className="flex flex-col items-center justify-center py-16 sm:py-20 px-4 border-2 border-dashed border-edge dark:border-slate-800 rounded-3xl bg-surface/50 dark:bg-slate-900/50 w-full min-w-0 transition-colors">
+                 <CreditCard className="w-12 h-12 sm:w-16 sm:h-16 text-ink-faint dark:text-slate-600 mb-4" />
+                 <h3 className="text-lg sm:text-xl font-bold text-ink dark:text-slate-200 mb-2 text-center">Nenhum cartão cadastrado</h3>
+                 <p className="text-xs sm:text-sm text-ink-muted dark:text-slate-400 text-center max-w-md mb-6">Cadastre seu primeiro cartão de crédito para acompanhar faturas, projetar limites e centralizar todas as suas compras parceladas.</p>
                  <button onClick={() => setModalCartaoAberto(true)} className="bg-brand-600 hover:bg-brand-700 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-colors">
                    + Cadastrar Cartão
                  </button>
                </div>
             ) : (
-              <div className="grid w-full gap-6 lg:grid-cols-2 xl:grid-cols-5 items-start">
-                <div className="space-y-6 w-full min-w-0 xl:col-span-2">
-
-                  {/* CARD PRINCIPAL - RESPONSIVO E SEGURO */}
+              <div className="grid w-full gap-6 lg:grid-cols-2">
+                <div className="space-y-6 w-full min-w-0">
+                  
+                  {/* CARD PRINCIPAL */}
                   <div className="rounded-3xl p-5 sm:p-7 text-white shadow-xl relative overflow-hidden transition-all duration-500 w-full min-w-0" style={{ backgroundColor: cartaoAtivo?.cor || '#0e5c3e' }}>
                     <div className="flex justify-between items-start mb-6 sm:mb-8 min-w-0 w-full">
                       <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] font-bold tracking-wider text-white/80 uppercase truncate">
@@ -862,10 +866,10 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="bg-surface rounded-2xl p-4 sm:p-6 border border-edge shadow-sm w-full min-w-0">
+                  <div className="bg-surface dark:bg-slate-900 rounded-2xl p-4 sm:p-6 border border-edge dark:border-slate-800 shadow-sm w-full min-w-0 transition-colors">
                     <div className="flex justify-between items-center mb-6">
-                      <h4 className="text-base sm:text-lg font-bold text-ink">Projeção 6 Meses</h4>
-                      <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-ink-faint shrink-0" />
+                      <h4 className="text-base sm:text-lg font-bold text-ink dark:text-white">Projeção 6 Meses</h4>
+                      <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-ink-faint dark:text-slate-500 shrink-0" />
                     </div>
                     <div className="relative h-40 w-full min-w-0">
                       <Bar
@@ -873,7 +877,7 @@ export default function Dashboard() {
                           labels: labelsProjecaoCartao,
                           datasets: [{
                             data: valoresProjecaoCartao,
-                            backgroundColor: '#e5e7eb',
+                            backgroundColor: isDark ? '#334155' : '#e5e7eb',
                             hoverBackgroundColor: cartaoAtivo?.cor || '#047857',
                             borderRadius: 4
                           }]
@@ -881,35 +885,35 @@ export default function Dashboard() {
                         options={{
                           responsive: true, maintainAspectRatio: false,
                           plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (context) => `R$ ${(context.parsed.y || 0).toFixed(2)}` } } },
-                          scales: { x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10 }, color: '#6b7280' } }, y: { display: false } }
+                          scales: { x: { grid: { display: false }, border: { display: false }, ticks: { color: chartTextColor, font: { size: 10 } } }, y: { display: false } }
                         }}
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-6 w-full min-w-0 xl:col-span-3">
-
-                  {/* FORMULÁRIO DE LANÇAMENTO - RESPONSIVO E SEGURO */}
-                  <form onSubmit={lancarCompraCartao} className="bg-surface rounded-2xl p-4 sm:p-6 border border-edge shadow-sm w-full min-w-0">
-                    <h4 className="text-sm sm:text-base font-bold text-ink flex items-center gap-2 mb-4">
-                      <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600 shrink-0" /> Lançar Compra
+                <div className="space-y-6 w-full min-w-0">
+                  
+                  {/* FORMULÁRIO DE LANÇAMENTO */}
+                  <form onSubmit={lancarCompraCartao} className="bg-surface dark:bg-slate-900 rounded-2xl p-4 sm:p-6 border border-edge dark:border-slate-800 shadow-sm w-full min-w-0 transition-colors">
+                    <h4 className="text-sm sm:text-base font-bold text-ink dark:text-white flex items-center gap-2 mb-4">
+                      <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600 dark:text-brand-500 shrink-0" /> Lançar Compra
                     </h4>
-                    <div className="border-t border-edge pt-4 space-y-4 w-full">
+                    <div className="border-t border-edge dark:border-slate-800 pt-4 space-y-4 w-full">
                       <div className="w-full">
-                        <label className="block text-xs font-semibold text-ink mb-1.5">Estabelecimento</label>
-                        <input required value={cartaoEstabelecimento} onChange={e => setCartaoEstabelecimento(e.target.value)} type="text" placeholder="✍️ Digite aqui o nome do local..." className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+                        <label className="block text-xs font-semibold text-ink dark:text-slate-300 mb-1.5">Estabelecimento</label>
+                        <input required value={cartaoEstabelecimento} onChange={e => setCartaoEstabelecimento(e.target.value)} type="text" placeholder="✍️ Digite aqui o nome do local..." className="w-full rounded-xl border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 placeholder-ink-faint dark:placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 transition-colors" />
                       </div>
                       
                       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full">
                         <div className="w-full sm:flex-1 min-w-0">
-                          <label className="block text-xs font-semibold text-ink mb-1.5">Valor Total (R$)</label>
-                          <input required value={cartaoValor} onChange={e => setCartaoValor(e.target.value)} type="number" step="0.01" placeholder="0,00" className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+                          <label className="block text-xs font-semibold text-ink dark:text-slate-300 mb-1.5">Valor Total (R$)</label>
+                          <input required value={cartaoValor} onChange={e => setCartaoValor(e.target.value)} type="number" step="0.01" placeholder="0,00" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 placeholder-ink-faint dark:placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 transition-colors" />
                         </div>
                         
                         <div className="flex gap-3 w-full sm:w-auto min-w-0">
                           <div className="flex-1 sm:w-24 min-w-0">
-                            <label className="block text-xs font-semibold text-ink mb-1.5">Parcelas</label>
+                            <label className="block text-xs font-semibold text-ink dark:text-slate-300 mb-1.5">Parcelas</label>
                             <input 
                               required 
                               disabled={isFixo}
@@ -917,60 +921,60 @@ export default function Dashboard() {
                               onChange={e => setCartaoParcelas(e.target.value)} 
                               type="number" 
                               min="1"
-                              className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50" 
+                              className="w-full rounded-xl border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50 transition-colors" 
                             />
                           </div>
                           <div className="flex-1 sm:w-36 min-w-0">
-                            <label className="block text-xs font-semibold text-ink mb-1.5">Mês Inicial</label>
+                            <label className="block text-xs font-semibold text-ink dark:text-slate-300 mb-1.5">Mês Inicial</label>
                             <input 
                               required 
                               value={cartaoMesInicio} 
                               onChange={e => setCartaoMesInicio(e.target.value)} 
                               type="month" 
-                              className="w-full rounded-xl border border-edge bg-canvas p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" 
+                              className="w-full rounded-xl border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 transition-colors" 
                             />
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-canvas p-3 rounded-xl border border-edge w-full">
-                        <label className="flex items-center gap-2 text-sm text-ink font-medium cursor-pointer shrink-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-canvas dark:bg-slate-950/50 p-3 rounded-xl border border-edge dark:border-slate-800 w-full transition-colors">
+                        <label className="flex items-center gap-2 text-sm text-ink dark:text-slate-300 font-medium cursor-pointer shrink-0">
                           <input 
                             type="checkbox" 
                             checked={isFixo} 
                             onChange={e => setIsFixo(e.target.checked)} 
-                            className="w-4 h-4 rounded border-edge text-brand-600 focus:ring-brand-500" 
+                            className="w-4 h-4 rounded border-edge dark:border-slate-600 bg-white dark:bg-slate-900 text-brand-600 focus:ring-brand-500" 
                           />
                           Compra Fixa Mensal
                         </label>
                         {cartaoValor && (
-                          <span className="text-xs font-bold text-brand-700 bg-brand-50 px-2.5 py-1.5 rounded-lg border border-brand-100 text-center truncate">
+                          <span className="text-xs font-bold text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-900/30 px-2.5 py-1.5 rounded-lg border border-brand-100 dark:border-brand-800/50 text-center truncate">
                             Será cobrado: R$ {(isFixo ? parseFloat(cartaoValor) : (parseFloat(cartaoValor) / (parseInt(cartaoParcelas) || 1))).toFixed(2)} / mês
                           </span>
                         )}
                       </div>
 
-                      <button type="submit" disabled={salvandoCartao} className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-bold text-sm py-3 rounded-xl transition-colors flex justify-center items-center gap-2 mt-2">
+                      <button type="submit" disabled={salvandoCartao} className="w-full bg-brand-600 dark:bg-brand-500 hover:bg-brand-700 dark:hover:bg-brand-600 disabled:opacity-50 text-white font-bold text-sm py-3 rounded-xl transition-colors flex justify-center items-center gap-2 mt-2">
                         {salvandoCartao ? <Loader2 className="w-4 h-4 animate-spin" /> : "✓ Adicionar à Fatura"}
                       </button>
                     </div>
                   </form>
 
                   {/* TABELA DE PRÓXIMAS PARCELAS */}
-                  <div className="bg-surface rounded-2xl p-0 border border-edge shadow-sm overflow-hidden w-full min-w-0">
-                    <div className="p-4 sm:p-5 flex justify-between items-center border-b border-edge bg-canvas/30 w-full min-w-0">
-                      <h4 className="text-sm sm:text-base font-bold text-ink flex items-center gap-2 shrink-0">
-                        <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-ink-muted" /> Próximas Parcelas
+                  <div className="bg-surface dark:bg-slate-900 rounded-2xl p-0 border border-edge dark:border-slate-800 shadow-sm overflow-hidden w-full min-w-0 transition-colors">
+                    <div className="p-4 sm:p-5 flex justify-between items-center border-b border-edge dark:border-slate-800 bg-canvas/30 dark:bg-slate-950/30 w-full min-w-0">
+                      <h4 className="text-sm sm:text-base font-bold text-ink dark:text-white flex items-center gap-2 shrink-0">
+                        <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-ink-muted dark:text-slate-400" /> Próximas Parcelas
                       </h4>
-                      <div className="flex rounded-lg border border-brand-200 bg-brand-50 p-1 shrink-0 ml-2">
-                        <button onClick={() => setFiltroParcelas("todos")} className={`px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-bold rounded-md shadow-sm transition-colors ${filtroParcelas === "todos" ? "bg-white text-brand-700" : "text-brand-600/70 hover:text-brand-700"}`}>Todos</button>
-                        <button onClick={() => setFiltroParcelas("fixos")} className={`px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-bold rounded-md shadow-sm transition-colors ${filtroParcelas === "fixos" ? "bg-white text-brand-700" : "text-brand-600/70 hover:text-brand-700"}`}>Fixos</button>
+                      <div className="flex rounded-lg border border-brand-200 dark:border-brand-800/50 bg-brand-50 dark:bg-brand-900/20 p-1 shrink-0 ml-2">
+                        <button onClick={() => setFiltroParcelas("todos")} className={`px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-bold rounded-md shadow-sm transition-colors ${filtroParcelas === "todos" ? "bg-white dark:bg-brand-600 text-brand-700 dark:text-white" : "text-brand-600/70 dark:text-brand-400/70 hover:text-brand-700 dark:hover:text-brand-300"}`}>Todos</button>
+                        <button onClick={() => setFiltroParcelas("fixos")} className={`px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-bold rounded-md shadow-sm transition-colors ${filtroParcelas === "fixos" ? "bg-white dark:bg-brand-600 text-brand-700 dark:text-white" : "text-brand-600/70 dark:text-brand-400/70 hover:text-brand-700 dark:hover:text-brand-300"}`}>Fixos</button>
                       </div>
                     </div>
                     
                     <div className="overflow-x-auto w-full">
                       <table className="w-full text-left text-sm whitespace-nowrap">
-                        <thead className="bg-canvas border-b border-edge text-[10px] sm:text-xs font-semibold text-ink-faint">
+                        <thead className="bg-canvas dark:bg-slate-950/80 border-b border-edge dark:border-slate-800 text-[10px] sm:text-xs font-semibold text-ink-faint dark:text-slate-500">
                           <tr>
                             <th className="px-4 sm:px-5 py-3">Estabelecimento</th>
                             <th className="px-4 sm:px-5 py-3 text-right">Valor</th>
@@ -978,25 +982,25 @@ export default function Dashboard() {
                             <th className="px-4 sm:px-5 py-3 text-right">Ações</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-edge/50 text-xs sm:text-sm">
+                        <tbody className="divide-y divide-edge/50 dark:divide-slate-800/80 text-xs sm:text-sm">
                           {parcelasExibidas.length > 0 ? (
                             parcelasExibidas.map((parcela) => {
                               const [ano, mes] = parcela.data_compra.split("-");
                               return (
-                                <tr key={parcela.id} className="hover:bg-canvas/50">
-                                  <td className="px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-2.5 sm:gap-3 font-medium text-ink">
-                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-brand-50 text-brand-600 flex shrink-0 items-center justify-center"><ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4" /></div>
+                                <tr key={parcela.id} className="hover:bg-canvas/50 dark:hover:bg-slate-800/50 transition-colors">
+                                  <td className="px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-2.5 sm:gap-3 font-medium text-ink dark:text-slate-200">
+                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex shrink-0 items-center justify-center"><ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4" /></div>
                                     <span className="truncate max-w-[120px] sm:max-w-[150px] block" title={parcela.estabelecimento}>{parcela.estabelecimento}</span>
                                   </td>
-                                  <td className="px-4 sm:px-5 py-3 sm:py-4 text-right font-bold text-ink">R$ {parcela.valor.toFixed(2)}</td>
-                                  <td className="px-4 sm:px-5 py-3 sm:py-4 text-center text-ink-muted">{mes}/{ano.slice(-2)}</td>
+                                  <td className="px-4 sm:px-5 py-3 sm:py-4 text-right font-bold text-ink dark:text-slate-100">R$ {parcela.valor.toFixed(2)}</td>
+                                  <td className="px-4 sm:px-5 py-3 sm:py-4 text-center text-ink-muted dark:text-slate-400">{mes}/{ano.slice(-2)}</td>
                                   
                                   <td className="px-4 sm:px-5 py-3 sm:py-4 text-right">
                                     <div className="flex justify-end gap-1 sm:gap-1.5">
-                                      <button type="button" onClick={() => setGastoEditando(parcela)} className="rounded p-1 sm:p-1.5 text-brand-600 transition-colors hover:bg-brand-50" title="Editar valor da parcela">
+                                      <button type="button" onClick={() => setGastoEditando(parcela)} className="rounded p-1 sm:p-1.5 text-brand-600 dark:text-brand-400 transition-colors hover:bg-brand-50 dark:hover:bg-brand-900/30" title="Editar valor da parcela">
                                         <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                       </button>
-                                      <button type="button" onClick={() => deletarGasto(parcela)} className="rounded p-1 sm:p-1.5 text-red-500 transition-colors hover:bg-red-50" title="Excluir compra da fatura">
+                                      <button type="button" onClick={() => deletarGasto(parcela)} className="rounded p-1 sm:p-1.5 text-red-500 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-900/30" title="Excluir compra da fatura">
                                         <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                       </button>
                                     </div>
@@ -1005,14 +1009,14 @@ export default function Dashboard() {
                               );
                             })
                           ) : (
-                            <tr><td colSpan={4} className="px-5 py-8 text-center text-ink-muted">Nenhuma fatura encontrada.</td></tr>
+                            <tr><td colSpan={4} className="px-5 py-8 text-center text-ink-muted dark:text-slate-500">Nenhuma fatura encontrada.</td></tr>
                           )}
                         </tbody>
                       </table>
                     </div>
                     {parcelasFuturas.length > 4 && (
-                      <div className="bg-canvas border-t border-edge p-3 text-center w-full">
-                        <button onClick={() => setMostrarTodasParcelas(!mostrarTodasParcelas)} className="text-xs font-bold text-brand-700 hover:underline">
+                      <div className="bg-canvas dark:bg-slate-950/80 border-t border-edge dark:border-slate-800 p-3 text-center w-full transition-colors">
+                        <button onClick={() => setMostrarTodasParcelas(!mostrarTodasParcelas)} className="text-xs font-bold text-brand-700 dark:text-brand-400 hover:underline">
                           {mostrarTodasParcelas ? "Ocultar parcelas" : `Ver todas as ${parcelasFuturas.length} parcelas futuras`}
                         </button>
                       </div>
@@ -1027,8 +1031,8 @@ export default function Dashboard() {
         {/* ABA HISTÓRICO */}
         {abaAtual === "tabela" && (
           <div className="space-y-4 w-full min-w-0">
-            <div className="space-y-3 rounded-2xl border border-edge bg-surface p-4 shadow-sm sm:p-5 w-full">
-              <h3 className="flex items-center gap-2 text-sm font-bold text-ink"><Filter className="h-4 w-4 text-brand-600 shrink-0" /> Filtros da Tabela</h3>
+            <div className="space-y-3 rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 p-4 shadow-sm sm:p-5 w-full transition-colors">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-ink dark:text-white"><Filter className="h-4 w-4 text-brand-600 dark:text-brand-500 shrink-0" /> Filtros da Tabela</h3>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 w-full">
                 <input type="date" value={filtroTabelaData} onChange={e => setFiltroTabelaData(e.target.value)} className={inputFiltro} />
                 <select value={filtroTabelaCategoria} onChange={e => setFiltroTabelaCategoria(e.target.value)} className={`${inputFiltro} truncate`}>
@@ -1046,10 +1050,10 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="mb-8 overflow-hidden rounded-2xl border border-edge bg-surface shadow-sm w-full">
+            <div className="mb-8 overflow-hidden rounded-2xl border border-edge dark:border-slate-800 bg-surface dark:bg-slate-900 shadow-sm w-full transition-colors">
               <div className="overflow-x-auto w-full">
-                <table className="w-full text-left text-sm text-ink-muted whitespace-nowrap">
-                  <thead className="border-b border-edge bg-canvas text-xs uppercase text-ink-faint">
+                <table className="w-full text-left text-sm text-ink-muted dark:text-slate-400 whitespace-nowrap">
+                  <thead className="border-b border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950/80 text-xs uppercase text-ink-faint dark:text-slate-500">
                     <tr>
                       <th className="px-4 py-3">Data</th>
                       <th className="px-4 py-3">Estabelecimento</th>
@@ -1057,27 +1061,27 @@ export default function Dashboard() {
                       <th className="px-4 py-3 text-right">Valor e Ações</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-edge/60">
+                  <tbody className="divide-y divide-edge/60 dark:divide-slate-800/80">
                     {tabelaFiltrada.length > 0 ? (
                       tabelaFiltrada.map(g => (
-                        <tr key={g.id} className="transition-colors hover:bg-canvas/60">
-                          <td className="px-4 py-3.5 font-medium text-ink">{g.data_compra ? g.data_compra.split('-').reverse().join('/') : 'S/ Data'}</td>
-                          <td className="max-w-[150px] truncate px-4 py-3.5 sm:max-w-[240px]" title={g.estabelecimento}>{g.estabelecimento}</td>
+                        <tr key={g.id} className="transition-colors hover:bg-canvas/60 dark:hover:bg-slate-800/50">
+                          <td className="px-4 py-3.5 font-medium text-ink dark:text-slate-200">{g.data_compra ? g.data_compra.split('-').reverse().join('/') : 'S/ Data'}</td>
+                          <td className="max-w-[150px] truncate px-4 py-3.5 sm:max-w-[240px] text-ink dark:text-slate-300" title={g.estabelecimento}>{g.estabelecimento}</td>
                           <td className="space-y-1.5 px-4 py-3.5 sm:space-y-0 sm:space-x-1.5">
-                            <span className="inline-block max-w-max truncate rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700">{g.categoria}</span>
-                            <span className="inline-block max-w-max truncate rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">{g.forma_pagamento}</span>
+                            <span className="inline-block max-w-max truncate rounded-full bg-brand-50 dark:bg-brand-900/30 px-2 py-0.5 text-[10px] font-semibold text-brand-700 dark:text-brand-300">{g.categoria}</span>
+                            <span className="inline-block max-w-max truncate rounded-full bg-sky-50 dark:bg-sky-900/30 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:text-sky-300">{g.forma_pagamento}</span>
                           </td>
                           <td className="px-4 py-3.5 text-right">
-                            <span className="mb-1.5 block font-bold text-ink">R$ {g.valor.toFixed(2)}</span>
+                            <span className="mb-1.5 block font-bold text-ink dark:text-slate-100">R$ {g.valor.toFixed(2)}</span>
                             <div className="flex justify-end gap-1.5">
-                              <button onClick={() => setGastoEditando(g)} className="rounded p-1.5 text-brand-600 transition-colors hover:bg-brand-50"><Pencil className="h-4 w-4" /></button>
-                              <button onClick={() => deletarGasto(g)} className="rounded p-1.5 text-red-500 transition-colors hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
+                              <button onClick={() => setGastoEditando(g)} className="rounded p-1.5 text-brand-600 dark:text-brand-400 transition-colors hover:bg-brand-50 dark:hover:bg-brand-900/30"><Pencil className="h-4 w-4" /></button>
+                              <button onClick={() => deletarGasto(g)} className="rounded p-1.5 text-red-500 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-900/30"><Trash2 className="h-4 w-4" /></button>
                             </div>
                           </td>
                         </tr>
                       ))
                     ) : (
-                      <tr><td colSpan={4} className="px-4 py-12 text-center text-ink-faint">Nenhum gasto encontrado.</td></tr>
+                      <tr><td colSpan={4} className="px-4 py-12 text-center text-ink-faint dark:text-slate-500">Nenhum gasto encontrado.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1090,46 +1094,46 @@ export default function Dashboard() {
 
       {/* MODAL DE EDIÇÃO DE GASTO */}
       {gastoEditando && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-surface shadow-xl">
-            <div className="flex items-center justify-between border-b border-edge bg-canvas p-4">
-              <h3 className="text-lg font-bold text-ink">Editar Gasto</h3>
-              <button onClick={() => setGastoEditando(null)} className="rounded-full bg-edge p-1.5 text-ink-muted transition-colors hover:bg-edge/70 hover:text-ink"><X className="h-5 w-5" /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/80 p-4 backdrop-blur-sm transition-colors">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-surface dark:bg-slate-900 shadow-xl border border-edge dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950 p-4">
+              <h3 className="text-lg font-bold text-ink dark:text-white">Editar Gasto</h3>
+              <button onClick={() => setGastoEditando(null)} className="rounded-full bg-edge dark:bg-slate-800 p-1.5 text-ink-muted dark:text-slate-400 transition-colors hover:bg-edge/70 dark:hover:bg-slate-700 hover:text-ink dark:hover:text-white"><X className="h-5 w-5" /></button>
             </div>
             <form onSubmit={salvarEdicao} className="space-y-4 p-5">
               <div>
-                <label className="mb-1 block text-sm font-medium text-ink">Estabelecimento</label>
-                <input required value={gastoEditando.estabelecimento} onChange={e => setGastoEditando({ ...gastoEditando, estabelecimento: e.target.value })} type="text" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25" />
+                <label className="mb-1 block text-sm font-medium text-ink dark:text-slate-300">Estabelecimento</label>
+                <input required value={gastoEditando.estabelecimento} onChange={e => setGastoEditando({ ...gastoEditando, estabelecimento: e.target.value })} type="text" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-colors" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-ink">Valor (R$)</label>
-                  <input required value={gastoEditando.valor} onChange={e => setGastoEditando({ ...gastoEditando, valor: e.target.value })} type="number" step="0.01" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25" />
+                  <label className="mb-1 block text-sm font-medium text-ink dark:text-slate-300">Valor (R$)</label>
+                  <input required value={gastoEditando.valor} onChange={e => setGastoEditando({ ...gastoEditando, valor: e.target.value })} type="number" step="0.01" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-colors" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-ink">Data</label>
-                  <input required value={gastoEditando.data_compra || ""} onChange={e => setGastoEditando({ ...gastoEditando, data_compra: e.target.value })} type="date" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25" />
+                  <label className="mb-1 block text-sm font-medium text-ink dark:text-slate-300">Data</label>
+                  <input required value={gastoEditando.data_compra || ""} onChange={e => setGastoEditando({ ...gastoEditando, data_compra: e.target.value })} type="date" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-colors" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-ink">Categoria</label>
-                  <select value={gastoEditando.categoria} onChange={e => setGastoEditando({ ...gastoEditando, categoria: e.target.value })} className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25">
+                  <label className="mb-1 block text-sm font-medium text-ink dark:text-slate-300">Categoria</label>
+                  <select value={gastoEditando.categoria} onChange={e => setGastoEditando({ ...gastoEditando, categoria: e.target.value })} className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-colors">
                     {CATEGORIAS.map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-ink">Pagamento</label>
-                  <select value={gastoEditando.forma_pagamento} onChange={e => setGastoEditando({ ...gastoEditando, forma_pagamento: e.target.value })} className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25">
+                  <label className="mb-1 block text-sm font-medium text-ink dark:text-slate-300">Pagamento</label>
+                  <select value={gastoEditando.forma_pagamento} onChange={e => setGastoEditando({ ...gastoEditando, forma_pagamento: e.target.value })} className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-colors">
                     {FORMAS_PAGAMENTO.map((fp) => (
                       <option key={fp} value={fp}>{fp}</option>
                     ))}
                   </select>
                 </div>
               </div>
-              <button type="submit" disabled={loadingEdit} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 p-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-60">
+              <button type="submit" disabled={loadingEdit} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 dark:bg-brand-500 p-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 dark:hover:bg-brand-600 disabled:opacity-60">
                 {loadingEdit ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Salvar Alterações
               </button>
             </form>
@@ -1139,40 +1143,40 @@ export default function Dashboard() {
 
       {/* MODAL CADASTRO DE CARTÃO */}
       {modalCartaoAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-surface shadow-xl">
-            <div className="flex items-center justify-between border-b border-edge bg-canvas p-4">
-              <h3 className="text-lg font-bold text-ink flex items-center gap-2"><CreditCard className="w-5 h-5 text-brand-600" /> Cadastrar Cartão</h3>
-              <button onClick={() => setModalCartaoAberto(false)} className="rounded-full bg-edge p-1.5 text-ink-muted hover:bg-edge/70 hover:text-ink"><X className="h-5 w-5" /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/80 p-4 backdrop-blur-sm transition-colors">
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-surface dark:bg-slate-900 shadow-xl border border-edge dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950 p-4">
+              <h3 className="text-lg font-bold text-ink dark:text-white flex items-center gap-2"><CreditCard className="w-5 h-5 text-brand-600 dark:text-brand-500" /> Cadastrar Cartão</h3>
+              <button onClick={() => setModalCartaoAberto(false)} className="rounded-full bg-edge dark:bg-slate-800 p-1.5 text-ink-muted dark:text-slate-400 hover:bg-edge/70 dark:hover:bg-slate-700 hover:text-ink dark:hover:text-white transition-colors"><X className="h-5 w-5" /></button>
             </div>
             <form onSubmit={cadastrarCartao} className="space-y-4 p-5">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-ink">Nome do Cartão (Ex: Nubank, Itaú)</label>
-                <input required value={novoCartao.nome} onChange={e => setNovoCartao({...novoCartao, nome: e.target.value})} type="text" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
+                <label className="mb-1 block text-xs font-semibold text-ink dark:text-slate-300">Nome do Cartão (Ex: Nubank, Itaú)</label>
+                <input required value={novoCartao.nome} onChange={e => setNovoCartao({...novoCartao, nome: e.target.value})} type="text" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors" />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-ink">Limite Total (R$)</label>
-                <input required value={novoCartao.limite} onChange={e => setNovoCartao({...novoCartao, limite: e.target.value})} type="number" step="0.01" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
+                <label className="mb-1 block text-xs font-semibold text-ink dark:text-slate-300">Limite Total (R$)</label>
+                <input required value={novoCartao.limite} onChange={e => setNovoCartao({...novoCartao, limite: e.target.value})} type="number" step="0.01" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-ink">Dia do Fechamento</label>
-                  <input required value={novoCartao.diaFechamento} onChange={e => setNovoCartao({...novoCartao, diaFechamento: e.target.value})} type="number" min="1" max="31" placeholder="Ex: 5" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
+                  <label className="mb-1 block text-xs font-semibold text-ink dark:text-slate-300">Dia do Fechamento</label>
+                  <input required value={novoCartao.diaFechamento} onChange={e => setNovoCartao({...novoCartao, diaFechamento: e.target.value})} type="number" min="1" max="31" placeholder="Ex: 5" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-ink">Dia do Vencimento</label>
-                  <input required value={novoCartao.diaVencimento} onChange={e => setNovoCartao({...novoCartao, diaVencimento: e.target.value})} type="number" min="1" max="31" placeholder="Ex: 12" className="w-full rounded-xl border border-edge bg-surface p-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
+                  <label className="mb-1 block text-xs font-semibold text-ink dark:text-slate-300">Dia do Vencimento</label>
+                  <input required value={novoCartao.diaVencimento} onChange={e => setNovoCartao({...novoCartao, diaVencimento: e.target.value})} type="number" min="1" max="31" placeholder="Ex: 12" className="w-full rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-950 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors" />
                 </div>
               </div>
               <div>
-                <label className="mb-2 block text-xs font-semibold text-ink">Cor do Cartão</label>
+                <label className="mb-2 block text-xs font-semibold text-ink dark:text-slate-300">Cor do Cartão</label>
                 <div className="flex gap-3">
                   {['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#F43F5E', '#1F2937'].map(color => (
-                    <button key={color} type="button" onClick={() => setNovoCartao({...novoCartao, cor: color})} className={`w-8 h-8 rounded-full border-2 ${novoCartao.cor === color ? 'border-brand-600 scale-110' : 'border-transparent hover:scale-105'} transition-transform`} style={{ backgroundColor: color }} />
+                    <button key={color} type="button" onClick={() => setNovoCartao({...novoCartao, cor: color})} className={`w-8 h-8 rounded-full border-2 ${novoCartao.cor === color ? 'border-brand-600 dark:border-brand-400 scale-110' : 'border-transparent hover:scale-105'} transition-transform`} style={{ backgroundColor: color }} />
                   ))}
                 </div>
               </div>
-              <button type="submit" className="mt-4 w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl transition-colors">
+              <button type="submit" className="mt-4 w-full bg-brand-600 dark:bg-brand-500 hover:bg-brand-700 dark:hover:bg-brand-600 text-white font-bold py-3 rounded-xl transition-colors">
                 Salvar Cartão
               </button>
             </form>

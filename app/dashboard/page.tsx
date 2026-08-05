@@ -18,7 +18,7 @@ import {
   Legend,
   ArcElement,
 } from "chart.js";
-import { CATEGORIAS, ROTULOS_CATEGORIAS, FORMAS_PAGAMENTO, CORES_CATEGORIAS, CORES_PAGAMENTOS } from "@/lib/constantes";
+import { CATEGORIAS, FORMAS_PAGAMENTO, CORES_CATEGORIAS, CORES_PAGAMENTOS } from "@/lib/constantes";
 import AppHeader from "@/components/AppHeader";
 import AuthCard from "@/components/AuthCard";
 import GraficosTab from "@/components/dashboard/GraficosTab";

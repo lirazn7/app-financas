@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Bar, Pie, Doughnut, Line } from "react-chartjs-2";
 import { Loader2, TrendingUp, Calendar, CreditCard, ChevronDown, Table as TableIcon, LayoutDashboard, Filter, Trash2, Pencil, X, Save, Wallet, ShoppingCart, BarChart3, Plus } from "lucide-react";
@@ -24,6 +24,8 @@ import AppHeader from "@/components/AppHeader";
 import AuthCard from "@/components/AuthCard";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
+
+const CORES_PAGAMENTOS_FIXO: { [key: string]: string } = { "Crédito": "#8B5CF6", "Débito": "#3B82F6", "Pix": "#10B981", "Dinheiro": "#F59E0B", "Vale Alimentação": "#F43F5E", "Vale Refeição": "#F97316" };
 
 export default function Dashboard() {
   // 🌟 Hook de Tema para adaptar os gráficos
@@ -478,71 +480,73 @@ export default function Dashboard() {
     }
   };
 
-  const parcelasFuturas = todosGastos.filter(g => {
+  const parcelasFuturas = useMemo(() => todosGastos.filter(g => {
     if (g.cartao_id !== cartaoSelecionado) return false;
     if (filtroParcelas === "fixos" && !g.estabelecimento.includes("(Fixo)")) return false;
-    return true; 
-  }).sort((a, b) => new Date(a.data_compra).getTime() - new Date(b.data_compra).getTime());
+    return true;
+  }).sort((a, b) => new Date(a.data_compra).getTime() - new Date(b.data_compra).getTime()), [todosGastos, cartaoSelecionado, filtroParcelas]);
 
   const parcelasExibidas = mostrarTodasParcelas ? parcelasFuturas : parcelasFuturas.slice(0, 4);
 
-  const labelsProjecaoCartao: string[] = [];
-  const valoresProjecaoCartao: number[] = [];
-  const hojeProjecao = new Date();
-  const mesesAbreviados = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const { labelsProjecaoCartao, valoresProjecaoCartao } = useMemo(() => {
+    const labels: string[] = [];
+    const valores: number[] = [];
+    const hojeProjecao = new Date();
+    const mesesAbreviados = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-  for (let i = 0; i < 6; i++) {
-    const dataProjecao = new Date(hojeProjecao.getFullYear(), hojeProjecao.getMonth() + i, 1);
-    const prefixoAnoMes = `${dataProjecao.getFullYear()}-${String(dataProjecao.getMonth() + 1).padStart(2, '0')}`;
-    
-    labelsProjecaoCartao.push(mesesAbreviados[dataProjecao.getMonth()]);
-    
-    const somaDoMes = todosGastos
-      .filter(g => g.cartao_id === cartaoSelecionado && g.data_compra?.startsWith(prefixoAnoMes))
-      .reduce((acc, g) => acc + (g.valor || 0), 0);
-      
-    valoresProjecaoCartao.push(somaDoMes);
-  }
+    for (let i = 0; i < 6; i++) {
+      const dataProjecao = new Date(hojeProjecao.getFullYear(), hojeProjecao.getMonth() + i, 1);
+      const prefixoAnoMes = `${dataProjecao.getFullYear()}-${String(dataProjecao.getMonth() + 1).padStart(2, '0')}`;
 
-  if (autenticado === null || loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-canvas dark:bg-slate-950"><Loader2 className="h-8 w-8 animate-spin text-brand-600" /></div>;
-  }
-  if (!autenticado) {
-    return <AuthCard modoCadastro={modoCadastro} setModoCadastro={setModoCadastro} email={emailInput} setEmail={setEmailInput} senha={senhaInput} setSenha={setSenhaInput} loading={false} onSubmit={lidarComAutenticacao} />;
-  }
+      labels.push(mesesAbreviados[dataProjecao.getMonth()]);
+
+      const somaDoMes = todosGastos
+        .filter(g => g.cartao_id === cartaoSelecionado && g.data_compra?.startsWith(prefixoAnoMes))
+        .reduce((acc, g) => acc + (g.valor || 0), 0);
+
+      valores.push(somaDoMes);
+    }
+
+    return { labelsProjecaoCartao: labels, valoresProjecaoCartao: valores };
+  }, [todosGastos, cartaoSelecionado]);
 
   const inputFiltro = "w-full rounded-xl border border-edge dark:border-slate-700 bg-canvas dark:bg-slate-950/50 p-2.5 text-sm text-ink dark:text-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-colors";
-  const tabelaFiltrada = gastosFiltrados.filter(g => (!filtroTabelaData || g.data_compra === filtroTabelaData) && (filtroTabelaCategoria === "todas" || g.categoria === filtroTabelaCategoria) && (filtroTabelaPagamento === "todas" || g.forma_pagamento === filtroTabelaPagamento));
+  const tabelaFiltrada = useMemo(
+    () => gastosFiltrados.filter(g => (!filtroTabelaData || g.data_compra === filtroTabelaData) && (filtroTabelaCategoria === "todas" || g.categoria === filtroTabelaCategoria) && (filtroTabelaPagamento === "todas" || g.forma_pagamento === filtroTabelaPagamento)),
+    [gastosFiltrados, filtroTabelaData, filtroTabelaCategoria, filtroTabelaPagamento]
+  );
 
-  const todosOsMesesParaLinha = Array.from(new Set(todosGastos.map(g => g.data_compra ? g.data_compra.substring(0, 7) : null).filter(Boolean))).sort() as string[];
-  const labelsEixoX = todosOsMesesParaLinha.map(mes => formatarMesAno(mes));
-  const coresPagamentosFixo: { [key: string]: string } = { "Crédito": "#8B5CF6", "Débito": "#3B82F6", "Pix": "#10B981", "Dinheiro": "#F59E0B", "Vale Alimentação": "#F43F5E", "Vale Refeição": "#F97316" };
+  const todosOsMesesParaLinha = useMemo(
+    () => Array.from(new Set(todosGastos.map(g => g.data_compra ? g.data_compra.substring(0, 7) : null).filter(Boolean))).sort() as string[],
+    [todosGastos]
+  );
+  const labelsEixoX = useMemo(() => todosOsMesesParaLinha.map(mes => formatarMesAno(mes)), [todosOsMesesParaLinha]);
 
-  const dataLinhaPagamentos = {
+  const dataLinhaPagamentos = useMemo(() => ({
     labels: labelsEixoX,
     datasets: pagamentosSelecionados.map((pagamento) => {
       const somaMensal = todosOsMesesParaLinha.map(mes => todosGastos.filter(g => g.forma_pagamento === pagamento && g.data_compra?.startsWith(mes)).reduce((acc, g) => acc + (g.valor || 0), 0));
-      const cor = coresPagamentosFixo[pagamento] || "#9CA3AF";
+      const cor = CORES_PAGAMENTOS_FIXO[pagamento] || "#9CA3AF";
       return { label: pagamento, data: somaMensal, borderColor: cor, backgroundColor: cor, borderWidth: 2, tension: 0.4, pointBackgroundColor: cor, fill: false };
     })
-  };
+  }), [labelsEixoX, pagamentosSelecionados, todosOsMesesParaLinha, todosGastos]);
 
-  const dataPizza = {
+  const dataPizza = useMemo(() => ({
     labels: Object.keys(dadosCategorias),
     datasets: [{ data: Object.values(dadosCategorias), backgroundColor: Object.keys(dadosCategorias).map((_, i) => CORES_CATEGORIAS[i % CORES_CATEGORIAS.length]), borderWidth: 1, borderColor: isDark ? '#1e293b' : '#ffffff' }],
-  };
+  }), [dadosCategorias, isDark]);
 
-  const dataPagamentos = {
+  const dataPagamentos = useMemo(() => ({
     labels: Object.keys(dadosPagamentos),
     datasets: [{ data: Object.values(dadosPagamentos), backgroundColor: Object.keys(dadosPagamentos).map((_, i) => CORES_PAGAMENTOS[i % CORES_PAGAMENTOS.length]), borderWidth: 1, borderColor: isDark ? '#1e293b' : '#ffffff' }],
-  };
+  }), [dadosPagamentos, isDark]);
 
-  const dataBarras = {
+  const dataBarras = useMemo(() => ({
     labels: Object.keys(dadosDias),
     datasets: [{ label: "Gastos no Dia (R$)", data: Object.values(dadosDias), backgroundColor: "#059669", borderRadius: 6 }],
-  };
+  }), [dadosDias]);
 
-  const dataLinha = {
+  const dataLinha = useMemo(() => ({
     labels: Object.keys(dadosMeses),
     datasets: [{
       label: "Gastos no Mês (R$)",
@@ -554,7 +558,14 @@ export default function Dashboard() {
       pointBackgroundColor: "#047857",
       fill: true,
     }],
-  };
+  }), [dadosMeses]);
+
+  if (autenticado === null || loading) {
+    return <div className="flex min-h-screen items-center justify-center bg-canvas dark:bg-slate-950"><Loader2 className="h-8 w-8 animate-spin text-brand-600" /></div>;
+  }
+  if (!autenticado) {
+    return <AuthCard modoCadastro={modoCadastro} setModoCadastro={setModoCadastro} email={emailInput} setEmail={setEmailInput} senha={senhaInput} setSenha={setSenhaInput} loading={false} onSubmit={lidarComAutenticacao} />;
+  }
 
   return (
     <div className="min-h-screen bg-canvas dark:bg-slate-950 overflow-x-hidden w-full transition-colors duration-300">

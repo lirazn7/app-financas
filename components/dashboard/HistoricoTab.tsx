@@ -14,6 +14,7 @@ interface HistoricoTabProps {
   tabelaFiltrada: any[];
   setGastoEditando: (g: any) => void;
   deletarGasto: (g: any) => void;
+  setGastoDetalhe: (g: any) => void;
 }
 
 export default function HistoricoTab({
@@ -27,6 +28,7 @@ export default function HistoricoTab({
   tabelaFiltrada,
   setGastoEditando,
   deletarGasto,
+  setGastoDetalhe,
 }: HistoricoTabProps) {
   return (
     <div className="space-y-4 w-full min-w-0">
@@ -63,7 +65,7 @@ export default function HistoricoTab({
             <tbody className="divide-y divide-edge/60 dark:divide-slate-800/80">
               {tabelaFiltrada.length > 0 ? (
                 tabelaFiltrada.map(g => (
-                  <tr key={g.id} className="transition-colors hover:bg-canvas/60 dark:hover:bg-slate-800/50">
+                  <tr key={g.id} onClick={() => setGastoDetalhe(g)} className="cursor-pointer transition-colors hover:bg-canvas/60 dark:hover:bg-slate-800/50">
                     <td className="px-4 py-3.5 font-medium text-ink dark:text-slate-200">{g.data_compra ? g.data_compra.split('-').reverse().join('/') : 'S/ Data'}</td>
                     <td className="max-w-[150px] truncate px-4 py-3.5 sm:max-w-[240px] text-ink dark:text-slate-300" title={g.estabelecimento}>{g.estabelecimento}</td>
                     <td className="space-y-1.5 px-4 py-3.5 sm:space-y-0 sm:space-x-1.5">
@@ -73,8 +75,8 @@ export default function HistoricoTab({
                     <td className="px-4 py-3.5 text-right">
                       <span className="mb-1.5 block font-bold text-ink dark:text-slate-100">R$ {g.valor.toFixed(2)}</span>
                       <div className="flex justify-end gap-1.5">
-                        <button onClick={() => setGastoEditando(g)} title="Editar gasto" aria-label="Editar gasto" className="min-h-9 min-w-9 inline-flex items-center justify-center rounded text-brand-600 dark:text-brand-400 transition-colors hover:bg-brand-50 dark:hover:bg-brand-900/30"><Pencil className="h-4 w-4" /></button>
-                        <button onClick={() => deletarGasto(g)} title="Excluir gasto" aria-label="Excluir gasto" className="min-h-9 min-w-9 inline-flex items-center justify-center rounded text-red-500 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-900/30"><Trash2 className="h-4 w-4" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); setGastoEditando(g); }} title="Editar gasto" aria-label="Editar gasto" className="min-h-9 min-w-9 inline-flex items-center justify-center rounded text-brand-600 dark:text-brand-400 transition-colors hover:bg-brand-50 dark:hover:bg-brand-900/30"><Pencil className="h-4 w-4" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); deletarGasto(g); }} title="Excluir gasto" aria-label="Excluir gasto" className="min-h-9 min-w-9 inline-flex items-center justify-center rounded text-red-500 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-900/30"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     </td>
                   </tr>

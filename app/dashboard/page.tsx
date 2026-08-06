@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Loader2, TrendingUp, Calendar, CreditCard, Table as TableIcon, LayoutDashboard, X, Save, Wallet } from "lucide-react";
+import { Loader2, TrendingUp, Calendar, CreditCard, Table as TableIcon, LayoutDashboard, X, Save, Wallet, Info, Pencil, Trash2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   Chart as ChartJS,
@@ -81,6 +81,7 @@ export default function Dashboard() {
 
   const [gastoEditando, setGastoEditando] = useState<any>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
+  const [gastoDetalhe, setGastoDetalhe] = useState<any>(null);
 
   const [limites, setLimites] = useState<{ [key: string]: number }>({});
   const [categoriaEditandoLimite, setCategoriaEditandoLimite] = useState<string | null>(null);
@@ -714,10 +715,59 @@ export default function Dashboard() {
             tabelaFiltrada={tabelaFiltrada}
             setGastoEditando={setGastoEditando}
             deletarGasto={deletarGasto}
+            setGastoDetalhe={setGastoDetalhe}
           />
         )}
 
       </main>
+
+      {/* MODAL DE DETALHES DO GASTO */}
+      {gastoDetalhe && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/80 p-4 backdrop-blur-sm transition-colors">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-surface dark:bg-slate-900 shadow-xl border border-edge dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950 p-4">
+              <h3 className="flex items-center gap-2 text-lg font-bold text-ink dark:text-white"><Info className="w-5 h-5 text-brand-600 dark:text-brand-500" /> Detalhes da Compra</h3>
+              <button onClick={() => setGastoDetalhe(null)} aria-label="Fechar" className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-full bg-edge dark:bg-slate-800 text-ink-muted dark:text-slate-400 transition-colors hover:bg-edge/70 dark:hover:bg-slate-700 hover:text-ink dark:hover:text-white"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="space-y-4 p-5">
+              <dl className="divide-y divide-edge dark:divide-slate-800 rounded-xl border border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950">
+                <div className="flex items-center justify-between gap-4 px-4 py-3">
+                  <dt className="text-sm text-ink-muted dark:text-slate-400">Estabelecimento</dt>
+                  <dd className="text-sm font-semibold text-ink dark:text-slate-200 text-right">{gastoDetalhe.estabelecimento}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4 px-4 py-3">
+                  <dt className="text-sm text-ink-muted dark:text-slate-400">Valor</dt>
+                  <dd className="text-sm font-bold text-ink dark:text-white">R$ {Number(gastoDetalhe.valor).toFixed(2)}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4 px-4 py-3">
+                  <dt className="text-sm text-ink-muted dark:text-slate-400">Data</dt>
+                  <dd className="text-sm font-semibold text-ink dark:text-slate-200">{gastoDetalhe.data_compra ? gastoDetalhe.data_compra.split('-').reverse().join('/') : 'S/ Data'}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4 px-4 py-3">
+                  <dt className="text-sm text-ink-muted dark:text-slate-400">Categoria</dt>
+                  <dd><span className="rounded-full bg-brand-50 dark:bg-brand-900/40 px-2.5 py-1 text-xs font-semibold text-brand-700 dark:text-brand-400">{gastoDetalhe.categoria}</span></dd>
+                </div>
+                <div className="flex items-center justify-between gap-4 px-4 py-3">
+                  <dt className="text-sm text-ink-muted dark:text-slate-400">Pagamento</dt>
+                  <dd><span className="rounded-full bg-sky-50 dark:bg-sky-950/40 px-2.5 py-1 text-xs font-semibold text-sky-700 dark:text-sky-400">{gastoDetalhe.forma_pagamento || 'Não identificado'}</span></dd>
+                </div>
+                <div className="flex items-start justify-between gap-4 px-4 py-3">
+                  <dt className="text-sm text-ink-muted dark:text-slate-400 shrink-0">Descrição</dt>
+                  <dd className="text-sm font-semibold text-ink dark:text-slate-200 text-right">{gastoDetalhe.contexto || "Sem descrição"}</dd>
+                </div>
+              </dl>
+              <div className="flex gap-3">
+                <button onClick={() => { setGastoDetalhe(null); deletarGasto(gastoDetalhe); }} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-900 p-3 text-sm font-semibold text-red-500 dark:text-red-400 transition-colors hover:bg-canvas dark:hover:bg-slate-800">
+                  <Trash2 className="h-4 w-4" /> Excluir
+                </button>
+                <button onClick={() => { setGastoEditando(gastoDetalhe); setGastoDetalhe(null); }} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-600 dark:bg-brand-500 p-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 dark:hover:bg-brand-600">
+                  <Pencil className="h-4 w-4" /> Editar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL DE EDIÇÃO DE GASTO */}
       {gastoEditando && (

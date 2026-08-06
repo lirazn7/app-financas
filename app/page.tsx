@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Camera, Upload, Loader2, CheckCircle, Save, Image as ImageIcon, Pencil, ScanLine, Sparkles, ShieldCheck, PieChart } from "lucide-react";
+import { Camera, Upload, Loader2, CheckCircle, Save, Image as ImageIcon, Pencil, ScanLine, Sparkles, ShieldCheck, PieChart, AlertTriangle, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { CATEGORIAS, FORMAS_PAGAMENTO, ROTULOS_CATEGORIAS } from "@/lib/constantes";
 import AppHeader from "@/components/AppHeader";
@@ -32,6 +32,10 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [resultado, setResultado] = useState<any>(null);
+
+  // Aviso customizado de compra duplicada
+  const [modalDuplicataAberto, setModalDuplicataAberto] = useState(false);
+  const [verificandoDuplicata, setVerificandoDuplicata] = useState(false);
 
   // Escuta e gerencia a sessão de login ativa do usuário
   useEffect(() => {
@@ -186,7 +190,7 @@ export default function Home() {
     setFormManual(prev => ({ ...prev, [name]: value }));
   };
 
-  const salvarNoBanco = async () => {
+  const executarSalvamento = async () => {
     if (!usuarioAtual) return alert("Erro: Usuário não identificado para salvar o registro.");
 
     setSalvando(true);
@@ -214,6 +218,7 @@ export default function Home() {
 
       alert("🎉 Gasto salvo com sucesso!");
 
+      setModalDuplicataAberto(false);
       setResultado(null);
       setImagem(null);
       setContexto("");
@@ -229,6 +234,45 @@ export default function Home() {
       alert("Erro ao salvar no banco: " + error.message);
     } finally {
       setSalvando(false);
+    }
+  };
+
+  // 🔍 Verifica se já existe um gasto idêntico (mesma descrição, estabelecimento, data e valor)
+  // antes de salvar. Se encontrar, exibe um aviso customizado pedindo confirmação.
+  const confirmarSalvamento = async () => {
+    if (!usuarioAtual) return alert("Erro: Usuário não identificado para salvar o registro.");
+
+    setVerificandoDuplicata(true);
+    try {
+      const dataValida = resultado.data_compra && resultado.data_compra !== "Não disponível"
+        ? resultado.data_compra
+        : null;
+      const descricaoAtual = (contexto || "Inserção Manual").trim();
+      const estabelecimentoAtual = (resultado.estabelecimento || "").trim();
+      const valorAtual = parseFloat(resultado.valor);
+
+      let query = supabase
+        .from("gastos")
+        .select("id")
+        .eq("user_id", usuarioAtual.id)
+        .eq("estabelecimento", estabelecimentoAtual)
+        .eq("valor", valorAtual)
+        .eq("contexto", descricaoAtual);
+
+      query = dataValida ? query.eq("data_compra", dataValida) : query.is("data_compra", null);
+
+      const { data, error } = await query.limit(1);
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setModalDuplicataAberto(true);
+      } else {
+        await executarSalvamento();
+      }
+    } catch (error: any) {
+      alert("Erro ao verificar duplicidade: " + error.message);
+    } finally {
+      setVerificandoDuplicata(false);
     }
   };
 
@@ -383,6 +427,17 @@ export default function Home() {
                         <input required name="estabelecimento" value={formManual.estabelecimento} onChange={lidarComMudancaManual} type="text" placeholder="Ex: Supermercado Extra" className={inputClasses} />
                       </div>
 
+                      <div>
+                        <label className={labelClasses}>Descrição (opcional)</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Almoço de domingo"
+                          className={inputClasses}
+                          value={contexto}
+                          onChange={(e) => setContexto(e.target.value)}
+                        />
+                      </div>
+
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className={labelClasses}>Valor (R$) *</label>
@@ -449,14 +504,20 @@ export default function Home() {
                       <dt className="text-sm text-ink-muted dark:text-slate-400">Pagamento</dt>
                       <dd><span className="rounded-full bg-sky-50 dark:bg-sky-950/40 px-2.5 py-1 text-xs font-semibold text-sky-700 dark:text-sky-400">{resultado.forma_pagamento || 'Não identificado'}</span></dd>
                     </div>
+                    {contexto && (
+                      <div className="flex items-start justify-between gap-4 px-4 py-3">
+                        <dt className="text-sm text-ink-muted dark:text-slate-400 shrink-0">Descrição</dt>
+                        <dd className="text-sm font-semibold text-ink dark:text-slate-200 text-right">{contexto}</dd>
+                      </div>
+                    )}
                   </dl>
 
                   <div className="flex gap-3">
-                    <button onClick={() => setResultado(null)} disabled={salvando} className="flex-1 rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-900 p-3.5 text-sm font-semibold text-ink dark:text-slate-200 transition-colors hover:bg-canvas dark:hover:bg-slate-800">
+                    <button onClick={() => setResultado(null)} disabled={salvando || verificandoDuplicata} className="flex-1 rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-900 p-3.5 text-sm font-semibold text-ink dark:text-slate-200 transition-colors hover:bg-canvas dark:hover:bg-slate-800">
                       Cancelar
                     </button>
-                    <button onClick={salvarNoBanco} disabled={salvando} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-600 p-3.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-60">
-                      {salvando ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Confirmar
+                    <button onClick={confirmarSalvamento} disabled={salvando || verificandoDuplicata} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-600 p-3.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-60">
+                      {(salvando || verificandoDuplicata) ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Confirmar
                     </button>
                   </div>
                 </div>
@@ -470,6 +531,51 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      {/* AVISO CUSTOMIZADO DE COMPRA DUPLICADA */}
+      {modalDuplicataAberto && resultado && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/80 p-4 backdrop-blur-sm transition-colors">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-surface dark:bg-slate-900 shadow-xl border border-edge dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950 p-4">
+              <h3 className="flex items-center gap-2 text-lg font-bold text-ink dark:text-white">
+                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" /> Possível duplicata
+              </h3>
+              <button onClick={() => setModalDuplicataAberto(false)} aria-label="Fechar" className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-full bg-edge dark:bg-slate-800 text-ink-muted dark:text-slate-400 transition-colors hover:bg-edge/70 dark:hover:bg-slate-700 hover:text-ink dark:hover:text-white"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="space-y-4 p-5">
+              <p className="text-sm text-ink dark:text-slate-300">
+                Já existe um gasto salvo com a <strong>mesma descrição, estabelecimento, data e valor</strong>. Isso pode ser um lançamento duplicado.
+              </p>
+              <dl className="divide-y divide-edge dark:divide-slate-800 rounded-xl border border-edge dark:border-slate-800 bg-canvas dark:bg-slate-950">
+                <div className="flex items-center justify-between gap-4 px-4 py-2.5">
+                  <dt className="text-sm text-ink-muted dark:text-slate-400">Estabelecimento</dt>
+                  <dd className="text-sm font-semibold text-ink dark:text-slate-200 text-right">{resultado.estabelecimento}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4 px-4 py-2.5">
+                  <dt className="text-sm text-ink-muted dark:text-slate-400">Valor</dt>
+                  <dd className="text-sm font-bold text-ink dark:text-white">R$ {Number(resultado.valor).toFixed(2)}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4 px-4 py-2.5">
+                  <dt className="text-sm text-ink-muted dark:text-slate-400">Data</dt>
+                  <dd className="text-sm font-semibold text-ink dark:text-slate-200">{resultado.data_compra}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4 px-4 py-2.5">
+                  <dt className="text-sm text-ink-muted dark:text-slate-400">Descrição</dt>
+                  <dd className="text-sm font-semibold text-ink dark:text-slate-200 text-right">{contexto || "Inserção Manual"}</dd>
+                </div>
+              </dl>
+              <div className="flex gap-3">
+                <button onClick={() => setModalDuplicataAberto(false)} disabled={salvando} className="flex-1 rounded-xl border border-edge dark:border-slate-700 bg-surface dark:bg-slate-900 p-3.5 text-sm font-semibold text-ink dark:text-slate-200 transition-colors hover:bg-canvas dark:hover:bg-slate-800">
+                  Cancelar
+                </button>
+                <button onClick={executarSalvamento} disabled={salvando} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-500 p-3.5 text-sm font-semibold text-white transition-colors hover:bg-amber-600 disabled:opacity-60">
+                  {salvando ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Salvar mesmo assim
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

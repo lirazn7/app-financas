@@ -20,7 +20,7 @@ O projeto foi construído utilizando as ferramentas mais modernas do ecossistema
 *   **Estilização:** [Tailwind CSS](https://tailwindcss.com/) + [Lucide Icons](https://lucide.dev/)
 *   **Gráficos:** [Chart.js](https://www.chartjs.org/) + `react-chartjs-2`
 *   **Autenticação e Banco de Dados:** [Supabase](https://supabase.com/) (PostgreSQL) com *Row Level Security* (RLS).
-*   **Inteligência Artificial:** API [OpenRouter](https://openrouter.ai/) utilizando o modelo de visão multimodal **Qwen 2.5 VL 72B Instruct** via *fetch* nativo.
+*   **Inteligência Artificial:** [Hugging Face Inference Providers](https://huggingface.co/docs/inference-providers) com **Qwen3-VL-30B-A3B-Instruct** (OCR/documentos). Sem créditos HF, cai automaticamente em modelos gratuitos via OpenRouter (`dots-3-note`, Gemma 4, Nemotron VL).
 *   **Hospedagem (Deploy):** [Vercel](https://vercel.com/)
 
 ### 🔐 Segurança Multi-usuário (RLS)
@@ -33,7 +33,7 @@ Siga o passo a passo abaixo para clonar e rodar o projeto em sua máquina.
 ### 1. Pré-requisitos
 *   [Node.js](https://nodejs.org/) instalado (versão 18+ recomendada)
 *   Conta ativa no [Supabase](https://supabase.com/) (para o banco de dados e autenticação)
-*   Conta no [OpenRouter](https://openrouter.ai/) (para a chave de API da IA de Visão)
+*   Conta no [Hugging Face](https://huggingface.co/) com `HF_TOKEN` (IA primária). Opcional: `OPENROUTER_API_KEY` para fallback gratuito se a conta HF ficar sem créditos.
 
 ### 2. Configuração do Banco de Dados (Supabase)
 Crie um novo projeto no Supabase, acesse o **SQL Editor** e execute os scripts de criação de tabelas:
@@ -67,6 +67,20 @@ CREATE TABLE public.limites_categorias (
 ALTER TABLE public.limites_categorias ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Permitir tudo para o dono do limite" ON public.limites_categorias FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ```
+
+### 3. Variáveis de ambiente
+Copie `.env.example` para `.env.local` e preencha as chaves. Na **Vercel** (Project → Settings → Environment Variables), configure as mesmas:
+
+| Variável | Obrigatória | Uso |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Sim | Supabase |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Sim | Supabase |
+| `NEXT_PUBLIC_ACESSO_TOKEN` | Sim | Gate de acesso |
+| `HF_TOKEN` | Recomendada | Leitura de notas (Qwen3-VL) |
+| `OPENROUTER_API_KEY` | Recomendada | Fallback gratuito se HF sem créditos |
+
+Após alterar env na Vercel, faça um **Redeploy**.
+
 <br>
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
